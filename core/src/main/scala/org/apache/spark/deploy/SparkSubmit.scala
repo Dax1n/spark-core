@@ -662,6 +662,7 @@ object SparkSubmit {
 
     try {
       //调用main方法。childArgs为核心数，内存等配置
+      //进入到我们自己的main方法执行，比如自己的wordcount的main方法
       mainMethod.invoke(null, childArgs.toArray)
     } catch {
       case t: Throwable =>

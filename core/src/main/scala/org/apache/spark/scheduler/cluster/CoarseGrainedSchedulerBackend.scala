@@ -33,17 +33,21 @@ import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
 import org.apache.spark.util.{ActorLogReceive, SerializableBuffer, AkkaUtils, Utils}
 
 /**
- * A scheduler backend that waits for coarse grained executors to connect to it through Akka.
- * This backend holds onto each executor for the duration of the Spark job rather than relinquishing
- * executors whenever a task is done and asking the scheduler to launch a new executor for
- * each new task. Executors may be launched in a variety of ways, such as Mesos tasks for the
- * coarse-grained Mesos mode or standalone processes for Spark's standalone deploy mode
- * (spark.deploy.*).
- */
-private[spark]
-class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSystem: ActorSystem)
-  extends ExecutorAllocationClient with SchedulerBackend with Logging
-{
+  * A scheduler backend that waits for coarse grained executors（coarse grained executors：粗粒度执行器）
+  * to connect to it through Akka.
+  * <br>
+  * <br>scheduler backend 等待coarse grained executors（coarse grained executors：粗粒度执行器）使用Akka连接到它
+  * <br>
+  * <br>
+  * This backend holds onto（保存到） each executor for the duration of the Spark job rather than relinquishing（放弃）
+  * executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
+  * Executors may be launched in a variety of ways, such as Mesos tasks for the
+  * coarse-grained Mesos mode or standalone processes for Spark's standalone deploy mode
+  * (spark.deploy.*).
+  */
+
+private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSystem: ActorSystem)
+  extends ExecutorAllocationClient with SchedulerBackend with Logging {
   // Use an atomic variable to track total number of cores in the cluster for simplicity and speed
   var totalCoreCount = new AtomicInteger(0)
   // Total number of executors that are currently registered
@@ -54,11 +58,11 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSyste
   // Submit tasks only after (registered resources / total expected resources)
   // is equal to at least this value, that is double between 0 and 1.
   var minRegisteredRatio =
-    math.min(1, conf.getDouble("spark.scheduler.minRegisteredResourcesRatio", 0))
+  math.min(1, conf.getDouble("spark.scheduler.minRegisteredResourcesRatio", 0))
   // Submit tasks after maxRegisteredWaitingTime milliseconds
   // if minRegisteredRatio has not yet been reached
   val maxRegisteredWaitingTime =
-    conf.getInt("spark.scheduler.maxRegisteredResourcesWaitingTime", 30000)
+  conf.getInt("spark.scheduler.maxRegisteredResourcesWaitingTime", 30000)
   val createTime = System.currentTimeMillis()
 
   private val executorDataMap = new HashMap[String, ExecutorData]
@@ -73,6 +77,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSyste
 
   class DriverActor(sparkProperties: Seq[(String, String)]) extends Actor with ActorLogReceive {
     override protected def log = CoarseGrainedSchedulerBackend.this.log
+
     private val addressToExecutorId = new HashMap[Address, String]
 
     override def preStart() {
@@ -306,19 +311,20 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSyste
   }
 
   /**
-   * Return the number of executors currently registered with this backend.
-   */
+    * Return the number of executors currently registered with this backend.
+    */
   def numExistingExecutors: Int = executorDataMap.size
 
   /**
-   * Request an additional number of executors from the cluster manager.
-   * @return whether the request is acknowledged.
-   */
+    * Request an additional number of executors from the cluster manager.
+    *
+    * @return whether the request is acknowledged.
+    */
   final override def requestExecutors(numAdditionalExecutors: Int): Boolean = synchronized {
     if (numAdditionalExecutors < 0) {
       throw new IllegalArgumentException(
         "Attempted to request a negative number of additional executor(s) " +
-        s"$numAdditionalExecutors from the cluster manager. Please specify a positive number!")
+          s"$numAdditionalExecutors from the cluster manager. Please specify a positive number!")
     }
     logInfo(s"Requesting $numAdditionalExecutors additional executor(s) from the cluster manager")
     logDebug(s"Number of pending executors is now $numPendingExecutors")
@@ -329,10 +335,11 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSyste
   }
 
   /**
-   * Express a preference to the cluster manager for a given total number of executors. This can
-   * result in canceling pending requests or filing additional requests.
-   * @return whether the request is acknowledged.
-   */
+    * Express a preference to the cluster manager for a given total number of executors. This can
+    * result in canceling pending requests or filing additional requests.
+    *
+    * @return whether the request is acknowledged.
+    */
   final override def requestTotalExecutors(numExecutors: Int): Boolean = synchronized {
     if (numExecutors < 0) {
       throw new IllegalArgumentException(
@@ -345,23 +352,23 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSyste
   }
 
   /**
-   * Request executors from the cluster manager by specifying the total number desired,
-   * including existing pending and running executors.
-   *
-   * The semantics here guarantee that we do not over-allocate executors for this application,
-   * since a later request overrides the value of any prior request. The alternative interface
-   * of requesting a delta of executors risks double counting new executors when there are
-   * insufficient resources to satisfy the first request. We make the assumption here that the
-   * cluster manager will eventually fulfill all requests when resources free up.
-   *
-   * @return whether the request is acknowledged.
-   */
+    * Request executors from the cluster manager by specifying the total number desired,
+    * including existing pending and running executors.
+    *
+    * The semantics here guarantee that we do not over-allocate executors for this application,
+    * since a later request overrides the value of any prior request. The alternative interface
+    * of requesting a delta of executors risks double counting new executors when there are
+    * insufficient resources to satisfy the first request. We make the assumption here that the
+    * cluster manager will eventually fulfill all requests when resources free up.
+    *
+    * @return whether the request is acknowledged.
+    */
   protected def doRequestTotalExecutors(requestedTotal: Int): Boolean = false
 
   /**
-   * Request that the cluster manager kill the specified executors.
-   * Return whether the kill request is acknowledged.
-   */
+    * Request that the cluster manager kill the specified executors.
+    * Return whether the kill request is acknowledged.
+    */
   final override def killExecutors(executorIds: Seq[String]): Boolean = synchronized {
     logInfo(s"Requesting to kill executor(s) ${executorIds.mkString(", ")}")
     val filteredExecutorIds = new ArrayBuffer[String]
@@ -383,9 +390,9 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSyste
   }
 
   /**
-   * Kill the given list of executors through the cluster manager.
-   * Return whether the kill request is acknowledged.
-   */
+    * Kill the given list of executors through the cluster manager.
+    * Return whether the kill request is acknowledged.
+    */
   protected def doKillExecutors(executorIds: Seq[String]): Boolean = false
 
 }

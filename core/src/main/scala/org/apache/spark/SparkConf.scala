@@ -27,23 +27,23 @@ import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.util.Utils
 
 /**
- * Configuration for a Spark application. Used to set various Spark parameters as key-value pairs.
- *
- * Most of the time, you would create a SparkConf object with `new SparkConf()`, which will load
- * values from any `spark.*` Java system properties set in your application as well. In this case,
- * parameters you set directly on the `SparkConf` object take priority over system properties.
- *
- * For unit tests, you can also call `new SparkConf(false)` to skip loading external settings and
- * get the same configuration no matter what the system properties are.
- *
- * All setter methods in this class support chaining. For example, you can write
- * `new SparkConf().setMaster("local").setAppName("My app")`.
- *
- * Note that once a SparkConf object is passed to Spark, it is cloned and can no longer be modified
- * by the user. Spark does not support modifying the configuration at runtime.
- *
- * @param loadDefaults whether to also load values from Java system properties
- */
+  * Configuration for a Spark application. Used to set various Spark parameters as key-value pairs.
+  *
+  * Most of the time, you would create a SparkConf object with `new SparkConf()`, which will load
+  * values from any `spark.*` Java system properties set in your application as well. In this case,
+  * parameters you set directly on the `SparkConf` object take priority over system properties.
+  *
+  * For unit tests, you can also call `new SparkConf(false)` to skip loading external settings and
+  * get the same configuration no matter what the system properties are.
+  *
+  * All setter methods in this class support chaining. For example, you can write
+  * `new SparkConf().setMaster("local").setAppName("My app")`.
+  *
+  * Note that once a SparkConf object is passed to Spark, it is cloned and can no longer be modified
+  * by the user. Spark does not support modifying the configuration at runtime.
+  *
+  * @param loadDefaults whether to also load values from Java system properties
+  */
 class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
 
   import SparkConf._
@@ -51,6 +51,9 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   /** Create a SparkConf that loads defaults from system properties and the classpath */
   def this() = this(true)
 
+  /**
+    * 线程安全的ConcurrentHashMap
+    */
   private val settings = new ConcurrentHashMap[String, String]()
 
   if (loadDefaults) {
@@ -73,9 +76,9 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   }
 
   /**
-   * The master URL to connect to, such as "local" to run locally with one thread, "local[4]" to
-   * run locally with 4 cores, or "spark://master:7077" to run on a Spark standalone cluster.
-   */
+    * The master URL to connect to, such as "local" to run locally with one thread, "local[4]" to
+    * run locally with 4 cores, or "spark://master:7077" to run on a Spark standalone cluster.
+    */
   def setMaster(master: String): SparkConf = {
     set("spark.master", master)
   }
@@ -97,19 +100,23 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   }
 
   /**
-   * Set an environment variable to be used when launching executors for this application.
-   * These variables are stored as properties of the form spark.executorEnv.VAR_NAME
-   * (for example spark.executorEnv.PATH) but this method makes them easier to set.
-   */
+    * <br>Set an environment variable to be used when launching executors for this application.
+    * <br>These variables are stored as properties of the form spark.executorEnv.VAR_NAME
+    * <br>(for example spark.executorEnv.PATH) but this method makes them easier to set.
+    *
+    * <br>设置Executor的执行环境变量，存储格式：(spark.executorEnv.变量名->变量值)
+    *
+    */
   def setExecutorEnv(variable: String, value: String): SparkConf = {
     set("spark.executorEnv." + variable, value)
   }
 
   /**
-   * Set multiple environment variables to be used when launching executors.
-   * These variables are stored as properties of the form spark.executorEnv.VAR_NAME
-   * (for example spark.executorEnv.PATH) but this method makes them easier to set.
-   */
+    * Set multiple environment variables to be used when launching executors.
+    * These variables are stored as properties of the form spark.executorEnv.VAR_NAME
+    * (for example spark.executorEnv.PATH) but this method makes them easier to set.
+    * <br>设置Executor的执行环境变量，存储格式：(spark.executorEnv.变量名->变量值)
+    */
   def setExecutorEnv(variables: Seq[(String, String)]): SparkConf = {
     for ((k, v) <- variables) {
       setExecutorEnv(k, v)
@@ -118,36 +125,50 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   }
 
   /**
-   * Set multiple environment variables to be used when launching executors.
-   * (Java-friendly version.)
-   */
+    * Set multiple environment variables to be used when launching executors.
+    * (Java-friendly version.)
+    * <br>设置Executor的执行环境变量，存储格式：(spark.executorEnv.变量名->变量值)
+    */
   def setExecutorEnv(variables: Array[(String, String)]): SparkConf = {
     setExecutorEnv(variables.toSeq)
   }
 
   /**
-   * Set the location where Spark is installed on worker nodes.
-   */
+    * Set the location where Spark is installed on worker nodes.
+    *  <br>设置SparkHome
+    *
+    */
   def setSparkHome(home: String): SparkConf = {
     set("spark.home", home)
   }
 
-  /** Set multiple parameters together */
+  /** Set multiple parameters together
+    *
+    * <br>将多个属性写到map中，最后直接set
+    *
+    */
   def setAll(settings: Traversable[(String, String)]) = {
     this.settings.putAll(settings.toMap.asJava)
     this
   }
 
-  /** Set a parameter if it isn't already configured */
+  /** Set a parameter if it isn't already configured
+    *
+    *<br>设置一个参数，如果这个参数之前没有设置的话，则设置。
+    * <br>设置过的话，则跳过
+    *
+    */
   def setIfMissing(key: String, value: String): SparkConf = {
     settings.putIfAbsent(key, value)
     this
   }
 
   /**
-   * Use Kryo serialization and register the given set of classes with Kryo.
-   * If called multiple times, this will append the classes from all calls together.
-   */
+    * Use Kryo serialization and register the given set of classes with Kryo.
+    * If called multiple times, this will append the classes from all calls together.
+    *
+    * <br>设置Kryo序列化器
+    */
   def registerKryoClasses(classes: Array[Class[_]]): SparkConf = {
     val allClassNames = new LinkedHashSet[String]()
     allClassNames ++= get("spark.kryo.classesToRegister", "").split(',').filter(!_.isEmpty)
@@ -158,7 +179,10 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
     this
   }
 
-  /** Remove a parameter from the configuration */
+  /** Remove a parameter from the configuration
+    *
+    *<br>移除某个参数
+    */
   def remove(key: String): SparkConf = {
     settings.remove(key)
     this
@@ -207,25 +231,25 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   /** Get all executor environment variables set on this SparkConf */
   def getExecutorEnv: Seq[(String, String)] = {
     val prefix = "spark.executorEnv."
-    getAll.filter{case (k, v) => k.startsWith(prefix)}
-          .map{case (k, v) => (k.substring(prefix.length), v)}
+    getAll.filter { case (k, v) => k.startsWith(prefix) }
+      .map { case (k, v) => (k.substring(prefix.length), v) }
   }
 
   /** Get all akka conf variables set on this SparkConf */
   def getAkkaConf: Seq[(String, String)] =
-    /* This is currently undocumented. If we want to make this public we should consider
-     * nesting options under the spark namespace to avoid conflicts with user akka options.
-     * Otherwise users configuring their own akka code via system properties could mess up
-     * spark's akka options.
-     *
-     *   E.g. spark.akka.option.x.y.x = "value"
-     */
-    getAll.filter { case (k, _) => isAkkaConf(k) }
+  /* This is currently undocumented. If we want to make this public we should consider
+   * nesting options under the spark namespace to avoid conflicts with user akka options.
+   * Otherwise users configuring their own akka code via system properties could mess up
+   * spark's akka options.
+   *
+   *   E.g. spark.akka.option.x.y.x = "value"
+   */
+  getAll.filter { case (k, _) => isAkkaConf(k) }
 
   /**
-   * Returns the Spark application id, valid in the Driver after TaskScheduler registration and
-   * from the start in the Executor.
-   */
+    * Returns the Spark application id, valid in the Driver after TaskScheduler registration and
+    * from the start in the Executor.
+    */
   def getAppId: String = get("spark.app.id")
 
   /** Does the configuration contain a given parameter? */
@@ -237,9 +261,9 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   }
 
   /**
-   * By using this instead of System.getenv(), environment variables can be mocked
-   * in unit tests.
-   */
+    * By using this instead of System.getenv(), environment variables can be mocked
+    * in unit tests.
+    */
   private[spark] def getenv(name: String): String = System.getenv(name)
 
   /** Checks for illegal or deprecated config settings. Throws an exception for the former. Not
@@ -261,9 +285,9 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
     sys.props.get("spark.driver.libraryPath").foreach { value =>
       val warning =
         s"""
-          |spark.driver.libraryPath was detected (set to '$value').
-          |This is deprecated in Spark 1.2+.
-          |
+           |spark.driver.libraryPath was detected (set to '$value').
+           |This is deprecated in Spark 1.2+.
+           |
           |Please instead use: $driverLibraryPathKey
         """.stripMargin
       logWarning(warning)
@@ -301,14 +325,14 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
     sys.env.get("SPARK_JAVA_OPTS").foreach { value =>
       val warning =
         s"""
-          |SPARK_JAVA_OPTS was detected (set to '$value').
-          |This is deprecated in Spark 1.0+.
-          |
+           |SPARK_JAVA_OPTS was detected (set to '$value').
+           |This is deprecated in Spark 1.0+.
+           |
           |Please instead use:
-          | - ./spark-submit with conf/spark-defaults.conf to set defaults for an application
-          | - ./spark-submit with --driver-java-options to set -X options for a driver
-          | - spark.executor.extraJavaOptions to set -X options for executors
-          | - SPARK_DAEMON_JAVA_OPTS to set java options for standalone daemons (master or worker)
+           | - ./spark-submit with conf/spark-defaults.conf to set defaults for an application
+           | - ./spark-submit with --driver-java-options to set -X options for a driver
+           | - spark.executor.extraJavaOptions to set -X options for executors
+           | - SPARK_DAEMON_JAVA_OPTS to set java options for standalone daemons (master or worker)
         """.stripMargin
       logWarning(warning)
 
@@ -325,12 +349,12 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
     sys.env.get("SPARK_CLASSPATH").foreach { value =>
       val warning =
         s"""
-          |SPARK_CLASSPATH was detected (set to '$value').
-          |This is deprecated in Spark 1.0+.
-          |
+           |SPARK_CLASSPATH was detected (set to '$value').
+           |This is deprecated in Spark 1.0+.
+           |
           |Please instead use:
-          | - ./spark-submit with --driver-class-path to augment the driver classpath
-          | - spark.executor.extraClassPath to augment the executor classpath
+           | - ./spark-submit with --driver-class-path to augment the driver classpath
+           | - spark.executor.extraClassPath to augment the executor classpath
         """.stripMargin
       logWarning(warning)
 
@@ -353,11 +377,11 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   }
 
   /**
-   * Return a string listing all keys and values, one per line. This is useful to print the
-   * configuration out for debugging.
-   */
+    * Return a string listing all keys and values, one per line. This is useful to print the
+    * configuration out for debugging.
+    */
   def toDebugString: String = {
-    getAll.sorted.map{case (k, v) => k + "=" + v}.mkString("\n")
+    getAll.sorted.map { case (k, v) => k + "=" + v }.mkString("\n")
   }
 
 }
@@ -374,40 +398,40 @@ private[spark] object SparkConf extends Logging {
   }
 
   /**
-   * Return whether the given config is an akka config (e.g. akka.actor.provider).
-   * Note that this does not include spark-specific akka configs (e.g. spark.akka.timeout).
-   */
+    * Return whether the given config is an akka config (e.g. akka.actor.provider).
+    * Note that this does not include spark-specific akka configs (e.g. spark.akka.timeout).
+    */
   def isAkkaConf(name: String): Boolean = name.startsWith("akka.")
 
   /**
-   * Return whether the given config should be passed to an executor on start-up.
-   *
-   * Certain akka and authentication configs are required of the executor when it connects to
-   * the scheduler, while the rest of the spark configs can be inherited from the driver later.
-   */
+    * Return whether the given config should be passed to an executor on start-up.
+    *
+    * Certain akka and authentication configs are required of the executor when it connects to
+    * the scheduler, while the rest of the spark configs can be inherited from the driver later.
+    */
   def isExecutorStartupConf(name: String): Boolean = {
     isAkkaConf(name) ||
-    name.startsWith("spark.akka") ||
-    name.startsWith("spark.auth") ||
-    name.startsWith("spark.ssl") ||
-    isSparkPortConf(name)
+      name.startsWith("spark.akka") ||
+      name.startsWith("spark.auth") ||
+      name.startsWith("spark.ssl") ||
+      isSparkPortConf(name)
   }
 
   /**
-   * Return true if the given config matches either `spark.*.port` or `spark.port.*`.
-   */
+    * Return true if the given config matches either `spark.*.port` or `spark.port.*`.
+    */
   def isSparkPortConf(name: String): Boolean = {
     (name.startsWith("spark.") && name.endsWith(".port")) || name.startsWith("spark.port.")
   }
 
   /**
-   * Translate the configuration key if it is deprecated and has a replacement, otherwise just
-   * returns the provided key.
-   *
-   * @param userKey Configuration key from the user / caller.
-   * @param warn Whether to print a warning if the key is deprecated. Warnings will be printed
-   *             only once for each key.
-   */
+    * Translate the configuration key if it is deprecated and has a replacement, otherwise just
+    * returns the provided key.
+    *
+    * @param userKey Configuration key from the user / caller.
+    * @param warn    Whether to print a warning if the key is deprecated. Warnings will be printed
+    *                only once for each key.
+    */
   def translateConfKey(userKey: String, warn: Boolean = false): String = {
     deprecatedConfigs.get(userKey)
       .map { deprecatedKey =>
@@ -419,20 +443,20 @@ private[spark] object SparkConf extends Logging {
   }
 
   /**
-   * Holds information about keys that have been deprecated or renamed.
-   *
-   * @param oldName Old configuration key.
-   * @param newName New configuration key, or `null` if key has no replacement, in which case the
-   *                deprecated key will be used (but the warning message will still be printed).
-   * @param version Version of Spark where key was deprecated.
-   * @param deprecationMessage Message to include in the deprecation warning; mandatory when
-   *                           `newName` is not provided.
-   */
+    * Holds information about keys that have been deprecated or renamed.
+    *
+    * @param oldName            Old configuration key.
+    * @param newName            New configuration key, or `null` if key has no replacement, in which case the
+    *                           deprecated key will be used (but the warning message will still be printed).
+    * @param version            Version of Spark where key was deprecated.
+    * @param deprecationMessage Message to include in the deprecation warning; mandatory when
+    *                           `newName` is not provided.
+    */
   private case class DeprecatedConfig(
-      oldName: String,
-      _newName: String,
-      version: String,
-      deprecationMessage: String = null) {
+                                       oldName: String,
+                                       _newName: String,
+                                       version: String,
+                                       deprecationMessage: String = null) {
 
     private val warned = new AtomicBoolean(false)
     val newName = Option(_newName)
@@ -448,14 +472,15 @@ private[spark] object SparkConf extends Logging {
             s"Please use the alternative '$newName' instead.")
           logWarning(
             s"The configuration option '$oldName' has been replaced as of Spark $version and " +
-            s"may be removed in the future. $message")
+              s"may be removed in the future. $message")
         } else {
           logWarning(
             s"The configuration option '$oldName' has been deprecated as of Spark $version and " +
-            s"may be removed in the future. $deprecationMessage")
+              s"may be removed in the future. $deprecationMessage")
         }
       }
     }
 
   }
+
 }
