@@ -248,18 +248,8 @@ object SparkSubmit {
   }
 
   /**
-    * <br>Prepare the environment for submitting an application.
-    * <br>This returns a 4-tuple:
-    * <br>(1) the arguments for the child process,(子线程参数) ，内存核心数等
-    * <br>(2) a list of classpath entries for the child,（依赖） jar包等
-    * <br>(3) a map of system properties, and（系统属性） 主机地址，jar相关
-    * <br>(4) the main class for the child（子线程的main class）。  在Standalone模式下客户端部署时候childMainClass = "org.apache.spark.deploy.Client"
-    * <br>Exposed for testing.
-    */
-
-  /**
     * <br>-----------------------------------------------------------------------------------------------------------
-    * <br>----------------------------------------------一个提交作业的示例Demo-----------------------------------------
+    * <br>-----------------------------------------一个提交作业的示例Demo----------------------------------
     * <br>-----------------------------------------------------------------------------------------------------------
     * <br>提交命令：
     * <br>spark-submit  --master spark://node1:7077  --class    org.apache.spark.examples.SparkPi./examples/jars/spark-examples_2.11-2.0.1.jar
@@ -276,8 +266,7 @@ object SparkSubmit {
     * <br>spark.master -> spark://node1:7077
     * <br>-----------------------------------------------------------------------------------------------------------
     * <br>childMainClass：	"org.apache.spark.examples.SparkPi"
-    * <br>
-    *
+    * <br>-----------------------------------------------------------------------------------------------------------
     */
   private[spark] def prepareSubmitEnvironment(args: SparkSubmitArguments)
   : (Seq[String], Seq[String], Map[String, String], String) = {
