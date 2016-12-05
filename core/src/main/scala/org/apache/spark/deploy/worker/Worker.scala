@@ -189,7 +189,9 @@ private[spark] class Worker(
   }
 
   /**
-    * Actor的声明周期方法
+    * registered :Actor的声明周期方法
+    * 在registered中完成向Master的注册
+    *
     */
   override def preStart() {
     assert(!registered)
@@ -342,11 +344,17 @@ private[spark] class Worker(
   }
 
   override def receiveWithLogging = {
+    //master发来的消息，告诉worker你注册成功了
     case RegisteredWorker(masterUrl, masterWebUiUrl) =>
       logInfo("Successfully registered with master " + masterUrl)
+      //修改当前注册状态
       registered = true
+      //修改master url为当前active的 master 的 url （不是standby master 的url）
       changeMaster(masterUrl, masterWebUiUrl)
+
+      //定时向master发送心跳
       context.system.scheduler.schedule(0 millis, HEARTBEAT_MILLIS millis, self, SendHeartbeat)
+
       if (CLEANUP_ENABLED) {
         logInfo(s"Worker cleanup enabled; old application directories will be deleted in: $workDir")
         context.system.scheduler.schedule(CLEANUP_INTERVAL_MILLIS millis,

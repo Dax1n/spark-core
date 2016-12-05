@@ -309,6 +309,8 @@ private[spark] class Master(
     /**
       *
       * Worker发来的注册消息
+      *
+      *
       */
     case RegisterWorker(id, workerHost, workerPort, cores, memory, workerUiPort, publicAddress) => {
       logInfo("Registering worker %s:%d with %d cores, %s RAM".format(
@@ -324,8 +326,12 @@ private[spark] class Master(
         //注册新的Worker信息
         val worker = new WorkerInfo(id, workerHost, workerPort, cores, memory, sender, workerUiPort, publicAddress)
         if (registerWorker(worker)) {
+
+
+          //完成worker的持久化，以防master宕机之后无法恢复
           persistenceEngine.addWorker(worker)
-          //给Worker发送消息：完成注册RegisteredWorker
+
+          //给Worker发送消息：告诉worker完成注册RegisteredWorker
           sender ! RegisteredWorker(masterUrl, masterWebUiUrl)
           schedule()
         } else {

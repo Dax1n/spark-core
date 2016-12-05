@@ -31,6 +31,12 @@ import scala.reflect.ClassTag
  * during recovery).
  *
  * The implementation of this trait defines how name-object pairs are stored or retrieved.
+  * <br>持久化引擎包括：
+  *             1）： BlackHolePersistenceEngine
+  *             2）： ZooKeeperPersistenceEngine
+  *             3）： FileSystemPersistenceEngine
+  *
+  *
  */
 @DeveloperApi
 trait PersistenceEngine {

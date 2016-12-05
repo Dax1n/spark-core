@@ -165,6 +165,25 @@ object SparkSubmit {
     */
   private[spark] def submit(args: SparkSubmitArguments): Unit = {
 
+    /**
+      * <br>提交命令：
+      * <br>spark-submit  --master spark://node1:7077  --class    org.apache.spark.examples.SparkPi./examples/jars/spark-examples_2.11-2.0.1.jar
+      * <br>-----------------------------------------------------------------------------------------------------------
+      * <br>childArgs ：是自己编写的Spark应用的main方法传入的参数
+      * <br>-----------------------------------------------------------------------------------------------------------
+      * <br> childClasspath   file:/home/daxin/spark/examples/jars/spark-examples_2.11-2.0.1.jar
+      * <br>-----------------------------------------------------------------------------------------------------------
+      * <br>sysProps值如下：
+      * <br>SPARK_SUBMIT -> true,
+      * <br>spark.app.name -> org.apache.spark.examples.SparkPi,
+      * <br>spark.jars -> file:/home/daxin/spark/./examples/jars/spark-examples_2.11-2.0.1.jar,
+      * <br>spark.submit.deployMode -> client,
+      * <br>spark.master -> spark://node1:7077
+      * <br>-----------------------------------------------------------------------------------------------------------
+      * <br>childMainClass：	"org.apache.spark.examples.SparkPi"
+      * <br>
+      *
+      */
     val (childArgs, childClasspath, sysProps, childMainClass) = prepareSubmitEnvironment(args)
 
     /**
@@ -236,6 +255,29 @@ object SparkSubmit {
     * <br>(3) a map of system properties, and（系统属性） 主机地址，jar相关
     * <br>(4) the main class for the child（子线程的main class）。  在Standalone模式下客户端部署时候childMainClass = "org.apache.spark.deploy.Client"
     * <br>Exposed for testing.
+    */
+
+  /**
+    * <br>-----------------------------------------------------------------------------------------------------------
+    * <br>----------------------------------------------一个提交作业的示例Demo-----------------------------------------
+    * <br>-----------------------------------------------------------------------------------------------------------
+    * <br>提交命令：
+    * <br>spark-submit  --master spark://node1:7077  --class    org.apache.spark.examples.SparkPi./examples/jars/spark-examples_2.11-2.0.1.jar
+    * <br>-----------------------------------------------------------------------------------------------------------
+    * <br>childArgs ：是自己编写的Spark应用的main方法传入的参数
+    * <br>-----------------------------------------------------------------------------------------------------------
+    * <br> childClasspath   file:/home/daxin/spark/examples/jars/spark-examples_2.11-2.0.1.jar
+    * <br>-----------------------------------------------------------------------------------------------------------
+    * <br>sysProps值如下：
+    * <br>SPARK_SUBMIT -> true,
+    * <br>spark.app.name -> org.apache.spark.examples.SparkPi,
+    * <br>spark.jars -> file:/home/daxin/spark/./examples/jars/spark-examples_2.11-2.0.1.jar,
+    * <br>spark.submit.deployMode -> client,
+    * <br>spark.master -> spark://node1:7077
+    * <br>-----------------------------------------------------------------------------------------------------------
+    * <br>childMainClass：	"org.apache.spark.examples.SparkPi"
+    * <br>
+    *
     */
   private[spark] def prepareSubmitEnvironment(args: SparkSubmitArguments)
   : (Seq[String], Seq[String], Map[String, String], String) = {
