@@ -42,34 +42,60 @@ import org.apache.spark.storage._
 import org.apache.spark.util.{AkkaUtils, Utils}
 
 /**
- * :: DeveloperApi ::
- * Holds all the runtime environment objects for a running Spark instance (either master or worker),
- * including the serializer, Akka actor system, block manager, map output tracker, etc. Currently
- * Spark code finds the SparkEnv through a global variable, so all the threads can access the same
- * SparkEnv. It can be accessed by SparkEnv.get (e.g. after creating a SparkContext).
- *
- * NOTE: This is not intended for external use. This is exposed for Shark and may be made private
- *       in a future release.
- */
+  * :: DeveloperApi ::
+  * Holds all the runtime environment objects for a running Spark instance (either master or worker),
+  * including the serializer, Akka actor system, block manager, map output tracker, etc. Currently
+  * Spark code finds the SparkEnv through a global variable, so all the threads can access the same
+  * SparkEnv. It can be accessed by SparkEnv.get (e.g. after creating a SparkContext).
+  *
+  * NOTE: This is not intended for external use. This is exposed for Shark and may be made private
+  * in a future release.
+  */
+
+
+/**
+  *
+  * <br>持有一个spark实例的所有的运行时环境变量对象，包含序列化器，Akka actor System等等
+  * <br>Spark 代码通过全局变量查找到SparkEnv，因此所有的线程都可以访问相同的Spark环境变量
+  * <br>可以使用 SparkEnv.get 获取
+  *
+  * @param executorId
+  * @param actorSystem
+  * @param serializer
+  * @param closureSerializer
+  * @param cacheManager
+  * @param mapOutputTracker
+  * @param shuffleManager
+  * @param broadcastManager
+  * @param blockTransferService
+  * @param blockManager
+  * @param securityManager
+  * @param httpFileServer
+  * @param sparkFilesDir
+  * @param metricsSystem
+  * @param shuffleMemoryManager
+  * @param outputCommitCoordinator
+  * @param conf
+  */
 @DeveloperApi
-class SparkEnv (
-    val executorId: String,
-    val actorSystem: ActorSystem,
-    val serializer: Serializer,
-    val closureSerializer: Serializer,
-    val cacheManager: CacheManager,
-    val mapOutputTracker: MapOutputTracker,
-    val shuffleManager: ShuffleManager,
-    val broadcastManager: BroadcastManager,
-    val blockTransferService: BlockTransferService,
-    val blockManager: BlockManager,
-    val securityManager: SecurityManager,
-    val httpFileServer: HttpFileServer,
-    val sparkFilesDir: String,
-    val metricsSystem: MetricsSystem,
-    val shuffleMemoryManager: ShuffleMemoryManager,
-    val outputCommitCoordinator: OutputCommitCoordinator,
-    val conf: SparkConf) extends Logging {
+class SparkEnv(
+                val executorId: String,
+                val actorSystem: ActorSystem,
+                val serializer: Serializer,
+                val closureSerializer: Serializer,
+                val cacheManager: CacheManager,
+                val mapOutputTracker: MapOutputTracker,
+                val shuffleManager: ShuffleManager,
+                val broadcastManager: BroadcastManager,
+                val blockTransferService: BlockTransferService,
+                val blockManager: BlockManager,
+                val securityManager: SecurityManager,
+                val httpFileServer: HttpFileServer,
+                val sparkFilesDir: String,
+                val metricsSystem: MetricsSystem,
+                val shuffleMemoryManager: ShuffleMemoryManager,
+                val outputCommitCoordinator: OutputCommitCoordinator,
+                val conf: SparkConf) extends Logging {
 
   private[spark] var isStopped = false
   private val pythonWorkers = mutable.HashMap[(String, Map[String, String]), PythonWorkerFactory]()
@@ -80,7 +106,7 @@ class SparkEnv (
 
   private[spark] def stop() {
     isStopped = true
-    pythonWorkers.foreach { case(key, worker) => worker.stop() }
+    pythonWorkers.foreach { case (key, worker) => worker.stop() }
     Option(httpFileServer).foreach(_.stop())
     mapOutputTracker.stop()
     shuffleManager.stop()
@@ -134,28 +160,32 @@ object SparkEnv extends Logging {
   }
 
   /**
-   * Returns the SparkEnv.
-   */
+    * Returns the SparkEnv.
+    */
   def get: SparkEnv = {
     env
   }
 
   /**
-   * Returns the ThreadLocal SparkEnv.
-   */
+    * Returns the ThreadLocal SparkEnv.
+    */
   @deprecated("Use SparkEnv.get instead", "1.2")
   def getThreadLocal: SparkEnv = {
     env
   }
 
   /**
-   * Create a SparkEnv for the driver.
-   */
+    *
+    * <br>SparkEnv：
+    * <br>Create a SparkEnv for the driver.
+    * <br>为Driver创建一个SparkEnv
+    *
+    */
   private[spark] def createDriverEnv(
-      conf: SparkConf,
-      isLocal: Boolean,
-      listenerBus: LiveListenerBus,
-      mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv = {
+                                      conf: SparkConf,
+                                      isLocal: Boolean,
+                                      listenerBus: LiveListenerBus,
+                                      mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv = {
     assert(conf.contains("spark.driver.host"), "spark.driver.host is not set on the driver!")
     assert(conf.contains("spark.driver.port"), "spark.driver.port is not set on the driver!")
     val hostname = conf.get("spark.driver.host")
@@ -173,16 +203,16 @@ object SparkEnv extends Logging {
   }
 
   /**
-   * Create a SparkEnv for an executor.
-   * In coarse-grained mode, the executor provides an actor system that is already instantiated.
-   */
+    * Create a SparkEnv for an executor.
+    * In coarse-grained mode, the executor provides an actor system that is already instantiated.
+    */
   private[spark] def createExecutorEnv(
-      conf: SparkConf,
-      executorId: String,
-      hostname: String,
-      port: Int,
-      numCores: Int,
-      isLocal: Boolean): SparkEnv = {
+                                        conf: SparkConf,
+                                        executorId: String,
+                                        hostname: String,
+                                        port: Int,
+                                        numCores: Int,
+                                        isLocal: Boolean): SparkEnv = {
     val env = create(
       conf,
       executorId,
@@ -196,19 +226,32 @@ object SparkEnv extends Logging {
     env
   }
 
+
   /**
-   * Helper method to create a SparkEnv for a driver or an executor.
-   */
+    * <br> Helper method to create a SparkEnv for a driver or an executor.
+    * <br> 工具方法为 driver 或者 executor 创建一个SparkEnv
+    *
+    * @param conf
+    * @param executorId
+    * @param hostname
+    * @param port
+    * @param isDriver 是否是Driver
+    * @param isLocal
+    * @param listenerBus
+    * @param numUsableCores
+    * @param mockOutputCommitCoordinator
+    * @return
+    */
   private def create(
-      conf: SparkConf,
-      executorId: String,
-      hostname: String,
-      port: Int,
-      isDriver: Boolean,
-      isLocal: Boolean,
-      listenerBus: LiveListenerBus = null,
-      numUsableCores: Int = 0,
-      mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv = {
+                      conf: SparkConf,
+                      executorId: String,
+                      hostname: String,
+                      port: Int,
+                      isDriver: Boolean,
+                      isLocal: Boolean,
+                      listenerBus: LiveListenerBus = null,
+                      numUsableCores: Int = 0,
+                      mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv = {
 
     // Listener bus is only used on the driver
     if (isDriver) {
@@ -218,12 +261,17 @@ object SparkEnv extends Logging {
     val securityManager = new SecurityManager(conf)
 
     // Create the ActorSystem for Akka and get the port it binds to.
+    /**
+      * 创建一个actorSystemName和获取绑定的端口
+      */
     val (actorSystem, boundPort) = {
+      //private[spark] val driverActorSystemName = "sparkDriver" driverActorSystemName就是Driver的actorSystem的名字
       val actorSystemName = if (isDriver) driverActorSystemName else executorActorSystemName
       AkkaUtils.createActorSystem(actorSystemName, hostname, port, conf, securityManager)
     }
 
     // Figure out which port Akka actually bound to in case the original port is 0 or occupied.
+    //设置端口
     if (isDriver) {
       conf.set("spark.driver.port", boundPort.toString)
     } else {
@@ -231,6 +279,15 @@ object SparkEnv extends Logging {
     }
 
     // Create an instance of the class with the given name, possibly initializing it with our conf
+    /**
+      *
+      * <br>创建全类名为className的一个实例（使用反射创建实例），可能使用sparkconf完成初始化
+      * <br>
+      *
+      * @param className
+      * @tparam T
+      * @return
+      */
     def instantiateClass[T](className: String): T = {
       val cls = Class.forName(className, true, Utils.getContextOrSparkClassLoader)
       // Look for a constructor taking a SparkConf and a boolean isDriver, then one taking just
@@ -252,16 +309,33 @@ object SparkEnv extends Logging {
 
     // Create an instance of the class named by the given SparkConf property, or defaultClassName
     // if the property is not set, possibly initializing it with our conf
+    /**
+      * <br>例如：("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
+      * <br>propertyName = spark.serializer 获取的值为 org.apache.spark.serializer.JavaSerializer的一个实例
+      *
+      * @param propertyName     属性名字
+      * @param defaultClassName 类名字
+      * @tparam T defaultClassName的类型
+      * @return 范围T的一个实例
+      */
     def instantiateClassFromConf[T](propertyName: String, defaultClassName: String): T = {
       instantiateClass[T](conf.get(propertyName, defaultClassName))
     }
 
-    val serializer = instantiateClassFromConf[Serializer](
-      "spark.serializer", "org.apache.spark.serializer.JavaSerializer")
+    /**
+      *
+      */
+    val serializer = instantiateClassFromConf[Serializer]("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
     logDebug(s"Using serializer: ${serializer.getClass}")
 
-    val closureSerializer = instantiateClassFromConf[Serializer](
-      "spark.closure.serializer", "org.apache.spark.serializer.JavaSerializer")
+    /**
+      *
+      * <br>Spark序列化器：
+      * <br>1：KryoSerializer
+      * <br>2：JavaSerializer
+      * 创建一个闭包序列化器
+      */
+    val closureSerializer = instantiateClassFromConf[Serializer]("spark.closure.serializer", "org.apache.spark.serializer.JavaSerializer")
 
     def registerOrLookup(name: String, newActor: => Actor): ActorRef = {
       if (isDriver) {
@@ -272,14 +346,22 @@ object SparkEnv extends Logging {
       }
     }
 
-    val mapOutputTracker =  if (isDriver) {
+
+    val mapOutputTracker = if (isDriver) {
+      //MapOutputTracker for the driver. This uses TimeStampedHashMap to keep track of map output information,
+      // which allows old output information based on a TTL.
+      //译文：为驱动创建一个map输出跟踪器，使用TimeStampedHashMap（时间戳HashMap）记录map的输出信息,基于TTL（time to live:生存时间）
+      // 存储旧的map输出信息
       new MapOutputTrackerMaster(conf)
     } else {
+      //MapOutputTracker for the executors, which fetches map output
+      // information from the driver's MapOutputTrackerMaster.
+      //为executors创建一个Map输出的跟踪器，他可以从Driver的map输出跟踪器获取输出信息
       new MapOutputTrackerWorker(conf)
     }
 
-    // Have to assign trackerActor after initialization as MapOutputTrackerActor
-    // requires the MapOutputTracker itself
+    // Have to assign trackerActor after initialization as MapOutputTrackerActor requires the MapOutputTracker itself
+    //
     mapOutputTracker.trackerActor = registerOrLookup(
       "MapOutputTracker",
       new MapOutputTrackerMasterActor(mapOutputTracker.asInstanceOf[MapOutputTrackerMaster], conf))
@@ -294,6 +376,9 @@ object SparkEnv extends Logging {
 
     val shuffleMemoryManager = new ShuffleMemoryManager(conf)
 
+    /**
+      * 块传输服务：默认使用的是netty
+      */
     val blockTransferService =
       conf.get("spark.shuffle.blockTransferService", "netty").toLowerCase match {
         case "netty" =>
@@ -320,7 +405,7 @@ object SparkEnv extends Logging {
         val fileServerPort = conf.getInt("spark.fileserver.port", 0)
         val server = new HttpFileServer(conf, securityManager, fileServerPort)
         server.initialize()
-        conf.set("spark.fileserver.uri",  server.serverUri)
+        conf.set("spark.fileserver.uri", server.serverUri)
         server
       } else {
         null
@@ -384,16 +469,16 @@ object SparkEnv extends Logging {
   }
 
   /**
-   * Return a map representation of jvm information, Spark properties, system properties, and
-   * class paths. Map keys define the category, and map values represent the corresponding
-   * attributes as a sequence of KV pairs. This is used mainly for SparkListenerEnvironmentUpdate.
-   */
+    * Return a map representation of jvm information, Spark properties, system properties, and
+    * class paths. Map keys define the category, and map values represent the corresponding
+    * attributes as a sequence of KV pairs. This is used mainly for SparkListenerEnvironmentUpdate.
+    */
   private[spark]
   def environmentDetails(
-      conf: SparkConf,
-      schedulingMode: String,
-      addedJars: Seq[String],
-      addedFiles: Seq[String]): Map[String, Seq[(String, String)]] = {
+                          conf: SparkConf,
+                          schedulingMode: String,
+                          addedJars: Seq[String],
+                          addedFiles: Seq[String]): Map[String, Seq[(String, String)]] = {
 
     import Properties._
     val jvmInformation = Seq(
@@ -405,11 +490,11 @@ object SparkEnv extends Logging {
     // Spark properties
     // This includes the scheduling mode whether or not it is configured (used by SparkUI)
     val schedulerMode =
-      if (!conf.contains("spark.scheduler.mode")) {
-        Seq(("spark.scheduler.mode", schedulingMode))
-      } else {
-        Seq[(String, String)]()
-      }
+    if (!conf.contains("spark.scheduler.mode")) {
+      Seq(("spark.scheduler.mode", schedulingMode))
+    } else {
+      Seq[(String, String)]()
+    }
     val sparkProperties = (conf.getAll ++ schedulerMode).sorted
 
     // System properties that are not java classpaths

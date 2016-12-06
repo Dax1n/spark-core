@@ -33,18 +33,31 @@ import org.apache.spark.deploy.master.Master
 import org.apache.spark.util.{ActorLogReceive, Utils, AkkaUtils}
 
 /**
- * Interface allowing applications to speak with a Spark deploy cluster. Takes a master URL,
- * an app description, and a listener for cluster events, and calls back the listener when various
- * events occur.
- *
- * @param masterUrls Each url should look like spark://host:port.
- */
+  * Interface allowing applications to speak with（和..通信） a Spark deploy cluster. Takes a master URL,
+  * an app description, and a listener for cluster events, and calls back the listener when various
+  * events occur.
+  *
+  * masterUrls: Each url should look like spark://host:port.
+  */
+/**
+  * <br>
+  * <br>允许应用和spark集群通信，携带 master URL、 app description、listener for cluster events。当有事件发生时候调用回调监听器
+  * <br>
+  *
+  * @param actorSystem
+  * @param masterUrls
+  * @param appDescription
+  * @param listener
+  * @param conf
+  *
+  *
+  */
 private[spark] class AppClient(
-    actorSystem: ActorSystem,
-    masterUrls: Array[String],
-    appDescription: ApplicationDescription,
-    listener: AppClientListener,
-    conf: SparkConf)
+                                actorSystem: ActorSystem,
+                                masterUrls: Array[String],
+                                appDescription: ApplicationDescription,
+                                listener: AppClientListener,
+                                conf: SparkConf)
   extends Logging {
 
   val masterAkkaUrls = masterUrls.map(Master.toAkkaUrl(_, AkkaUtils.protocol(actorSystem)))
@@ -60,8 +73,10 @@ private[spark] class AppClient(
 
   class ClientActor extends Actor with ActorLogReceive with Logging {
     var master: ActorSelection = null
-    var alreadyDisconnected = false  // To avoid calling listener.disconnected() multiple times
-    var alreadyDead = false  // To avoid calling listener.dead() multiple times
+    var alreadyDisconnected = false
+    // To avoid calling listener.disconnected() multiple times
+    var alreadyDead = false
+    // To avoid calling listener.dead() multiple times
     var registrationRetryTimer: Option[Cancellable] = None
 
     override def preStart() {
@@ -162,8 +177,8 @@ private[spark] class AppClient(
     }
 
     /**
-     * Notify the listener that we disconnected, if we hadn't already done so before.
-     */
+      * Notify the listener that we disconnected, if we hadn't already done so before.
+      */
     def markDisconnected() {
       if (!alreadyDisconnected) {
         listener.disconnected()

@@ -44,6 +44,9 @@ import org.apache.spark.util.{ActorLogReceive, SerializableBuffer, AkkaUtils, Ut
   * Executors may be launched in a variety of ways, such as Mesos tasks for the
   * coarse-grained Mesos mode or standalone processes for Spark's standalone deploy mode
   * (spark.deploy.*).
+  *
+  * <br><br>
+  * <br>SchedulerBackend主要起到的作用是为Task分配计算资源。
   */
 
 private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val actorSystem: ActorSystem)
@@ -233,16 +236,26 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
   var driverActor: ActorRef = null
   val taskIdsOnSlave = new HashMap[String, HashSet[String]]
 
+  /**
+    *
+    * <br>CoarseGrainedSchedulerBackend的start()方法主要完成driverActor的创建
+    * <br><br>
+    * <br>SparkSubmit中有两个actor，分别是：1）driverActor负责与Executor通信 ，2）clientActor负责与Master通信
+    *
+    *
+    *
+    */
   override def start() {
     val properties = new ArrayBuffer[(String, String)]
     for ((key, value) <- scheduler.sc.conf.getAll) {
+      //将SparkConf中的所有以为spark开头的配置加载到properties中
       if (key.startsWith("spark.")) {
         properties += ((key, value))
       }
     }
     // TODO (prashant) send conf instead of properties
-    driverActor = actorSystem.actorOf(
-      Props(new DriverActor(properties)), name = CoarseGrainedSchedulerBackend.ACTOR_NAME)
+    // val ACTOR_NAME = "CoarseGrainedScheduler"
+    driverActor = actorSystem.actorOf(Props(new DriverActor(properties)), name = CoarseGrainedSchedulerBackend.ACTOR_NAME)
   }
 
   def stopExecutors() {

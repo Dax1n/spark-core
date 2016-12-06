@@ -68,7 +68,13 @@ import org.apache.spark.storage.BlockManagerMessages.BlockManagerHeartbeat
   *
   *  - When adding a new data structure, update `DAGSchedulerSuite.assertDataStructuresEmpty` to
   * include the new structure. This will help to catch memory leaks.
+  *
+  *
+  * <br><br><br><br>DAGScheduler负责将Task拆分成不同Stage的具有依赖关系（包含RDD的依赖关系）的多批任务，然后提交给TaskScheduler进行具体处理。
+  *
   */
+
+
 private[spark] class DAGScheduler(
                                    private[scheduler] val sc: SparkContext,
                                    private[scheduler] val taskScheduler: TaskScheduler,
@@ -76,8 +82,7 @@ private[spark] class DAGScheduler(
                                    mapOutputTracker: MapOutputTrackerMaster,
                                    blockManagerMaster: BlockManagerMaster,
                                    env: SparkEnv,
-                                   clock: Clock = new SystemClock())
-  extends Logging {
+                                   clock: Clock = new SystemClock()) extends Logging {
 
   def this(sc: SparkContext, taskScheduler: TaskScheduler) = {
     this(

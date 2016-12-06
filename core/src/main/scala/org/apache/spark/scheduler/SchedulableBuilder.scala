@@ -29,6 +29,9 @@ import org.apache.spark.util.Utils
  * An interface to build Schedulable tree
  * buildPools: build the tree nodes(pools)
  * addTaskSetManager: build the leaf nodes(TaskSetManagers)
+  *
+  *
+  *
  */
 private[spark] trait SchedulableBuilder {
   def rootPool: Pool

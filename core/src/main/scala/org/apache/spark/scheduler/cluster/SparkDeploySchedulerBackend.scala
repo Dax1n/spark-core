@@ -23,17 +23,28 @@ import org.apache.spark.deploy.client.{AppClient, AppClientListener}
 import org.apache.spark.scheduler.{ExecutorExited, ExecutorLossReason, SlaveLost, TaskSchedulerImpl}
 import org.apache.spark.util.{AkkaUtils, Utils}
 
+/**
+  *
+  * <br>继承关系：SparkDeploySchedulerBackend  extends CoarseGrainedSchedulerBackend
+  * <br><br>
+  * <br>SchedulerBackend主要起到的作用是为Task分配计算资源。
+  * <br>
+  *
+  * @param scheduler
+  * @param sc
+  * @param masters
+  */
 private[spark] class SparkDeploySchedulerBackend(
-    scheduler: TaskSchedulerImpl,
-    sc: SparkContext,
-    masters: Array[String])
+                                                  scheduler: TaskSchedulerImpl,
+                                                  sc: SparkContext,
+                                                  masters: Array[String])
   extends CoarseGrainedSchedulerBackend(scheduler, sc.env.actorSystem)
-  with AppClientListener
-  with Logging {
+    with AppClientListener
+    with Logging {
 
   var client: AppClient = null
   var stopping = false
-  var shutdownCallback : (SparkDeploySchedulerBackend) => Unit = _
+  var shutdownCallback: (SparkDeploySchedulerBackend) => Unit = _
   @volatile var appId: String = _
 
   val registrationLock = new Object()
@@ -42,6 +53,11 @@ private[spark] class SparkDeploySchedulerBackend(
   val maxCores = conf.getOption("spark.cores.max").map(_.toInt)
   val totalExpectedCores = maxCores.getOrElse(0)
 
+  /**
+    *<br> 1： super.start() 完成driverActor的创建
+    *<br> 2： 方法其余完成clientActor的创建
+    *
+    */
   override def start() {
     super.start()
 
@@ -70,11 +86,11 @@ private[spark] class SparkDeploySchedulerBackend(
     // compute-classpath.{cmd,sh} and makes all needed jars available to child processes
     // when the assembly is built with the "*-provided" profiles enabled.
     val testingClassPath =
-      if (sys.props.contains("spark.testing")) {
-        sys.props("java.class.path").split(java.io.File.pathSeparator).toSeq
-      } else {
-        Nil
-      }
+    if (sys.props.contains("spark.testing")) {
+      sys.props("java.class.path").split(java.io.File.pathSeparator).toSeq
+    } else {
+      Nil
+    }
 
     // Start executors with a few necessary configs for registering with the scheduler
     val sparkJavaOpts = Utils.sparkJavaOpts(conf, SparkConf.isExecutorStartupConf)
@@ -124,7 +140,7 @@ private[spark] class SparkDeploySchedulerBackend(
   }
 
   override def executorAdded(fullId: String, workerId: String, hostPort: String, cores: Int,
-    memory: Int) {
+                             memory: Int) {
     logInfo("Granted executor ID %s on hostPort %s with %d cores, %s RAM".format(
       fullId, hostPort, cores, Utils.megabytesToString(memory)))
   }

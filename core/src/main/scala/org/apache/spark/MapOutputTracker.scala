@@ -34,8 +34,10 @@ import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.util._
 
 private[spark] sealed trait MapOutputTrackerMessage
+
 private[spark] case class GetMapOutputStatuses(shuffleId: Int)
   extends MapOutputTrackerMessage
+
 private[spark] case object StopMapOutputTracker extends MapOutputTrackerMessage
 
 /** Actor class for MapOutputTrackerMaster */
@@ -70,10 +72,10 @@ private[spark] class MapOutputTrackerMasterActor(tracker: MapOutputTrackerMaster
 }
 
 /**
- * Class that keeps track of the location of the map output of
- * a stage. This is abstract because different versions of MapOutputTracker
- * (driver and executor) use different HashMap to store its metadata.
- */
+  * Class that keeps track of the location of the map output of
+  * a stage. This is abstract because different versions of MapOutputTracker
+  * (driver and executor) use different HashMap to store its metadata.
+  */
 private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging {
   private val timeout = AkkaUtils.askTimeout(conf)
   private val retryAttempts = AkkaUtils.numRetries(conf)
@@ -83,21 +85,21 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
   var trackerActor: ActorRef = _
 
   /**
-   * This HashMap has different behavior for the driver and the executors.
-   *
-   * On the driver, it serves as the source of map outputs recorded from ShuffleMapTasks.
-   * On the executors, it simply serves as a cache, in which a miss triggers a fetch from the
-   * driver's corresponding HashMap.
-   *
-   * Note: because mapStatuses is accessed concurrently, subclasses should make sure it's a
-   * thread-safe map.
-   */
+    * This HashMap has different behavior for the driver and the executors.
+    *
+    * On the driver, it serves as the source of map outputs recorded from ShuffleMapTasks.
+    * On the executors, it simply serves as a cache, in which a miss triggers a fetch from the
+    * driver's corresponding HashMap.
+    *
+    * Note: because mapStatuses is accessed concurrently, subclasses should make sure it's a
+    * thread-safe map.
+    */
   protected val mapStatuses: Map[Int, Array[MapStatus]]
 
   /**
-   * Incremented every time a fetch fails so that client nodes know to clear
-   * their cache of map output locations if this happens.
-   */
+    * Incremented every time a fetch fails so that client nodes know to clear
+    * their cache of map output locations if this happens.
+    */
   protected var epoch: Long = 0
   protected val epochLock = new AnyRef
 
@@ -105,9 +107,9 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
   private val fetching = new HashSet[Int]
 
   /**
-   * Send a message to the trackerActor and get its result within a default timeout, or
-   * throw a SparkException if this fails.
-   */
+    * Send a message to the trackerActor and get its result within a default timeout, or
+    * throw a SparkException if this fails.
+    */
   protected def askTracker(message: Any): Any = {
     try {
       AkkaUtils.askWithReply(message, trackerActor, retryAttempts, retryIntervalMs, timeout)
@@ -128,9 +130,9 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
   }
 
   /**
-   * Called from executors to get the server URIs and output sizes of the map outputs of
-   * a given shuffle.
-   */
+    * Called from executors to get the server URIs and output sizes of the map outputs of
+    * a given shuffle.
+    */
   def getServerStatuses(shuffleId: Int, reduceId: Int): Array[(BlockManagerId, Long)] = {
     val statuses = mapStatuses.get(shuffleId).orNull
     if (statuses == null) {
@@ -196,10 +198,10 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
   }
 
   /**
-   * Called from executors to update the epoch number, potentially clearing old outputs
-   * because of a fetch failure. Each executor task calls this with the latest epoch
-   * number on the driver at the time it was created.
-   */
+    * Called from executors to update the epoch number, potentially clearing old outputs
+    * because of a fetch failure. Each executor task calls this with the latest epoch
+    * number on the driver at the time it was created.
+    */
   def updateEpoch(newEpoch: Long) {
     epochLock.synchronized {
       if (newEpoch > epoch) {
@@ -216,13 +218,16 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
   }
 
   /** Stop the tracker. */
-  def stop() { }
+  def stop() {}
 }
 
 /**
- * MapOutputTracker for the driver. This uses TimeStampedHashMap to keep track of map
- * output information, which allows old output information based on a TTL.
- */
+  * MapOutputTracker for the driver. This uses TimeStampedHashMap to keep track of map
+  * output information, which allows old output information based on a TTL.
+  *
+  * 为驱动创建一个map输出跟踪器，使用TimeStampedHashMap（时间戳HashMap）记录map的输出信息,基于TTL（time to live:生存时间）
+  * 存储旧的map输出信息
+  */
 private[spark] class MapOutputTrackerMaster(conf: SparkConf)
   extends MapOutputTracker(conf) {
 
@@ -230,16 +235,16 @@ private[spark] class MapOutputTrackerMaster(conf: SparkConf)
   private var cacheEpoch = epoch
 
   /**
-   * Timestamp based HashMap for storing mapStatuses and cached serialized statuses in the driver,
-   * so that statuses are dropped only by explicit de-registering or by TTL-based cleaning (if set).
-   * Other than these two scenarios, nothing should be dropped from this HashMap.
-   */
+    * Timestamp based HashMap for storing mapStatuses and cached serialized statuses in the driver,
+    * so that statuses are dropped only by explicit de-registering or by TTL-based cleaning (if set).
+    * Other than these two scenarios, nothing should be dropped from this HashMap.
+    */
   protected val mapStatuses = new TimeStampedHashMap[Int, Array[MapStatus]]()
   private val cachedSerializedStatuses = new TimeStampedHashMap[Int, Array[Byte]]()
 
   // For cleaning up TimeStampedHashMaps
   private val metadataCleaner =
-    new MetadataCleaner(MetadataCleanerType.MAP_OUTPUT_TRACKER, this.cleanup, conf)
+  new MetadataCleaner(MetadataCleanerType.MAP_OUTPUT_TRACKER, this.cleanup, conf)
 
   def registerShuffle(shuffleId: Int, numMaps: Int) {
     if (mapStatuses.put(shuffleId, new Array[MapStatus](numMaps)).isDefined) {
@@ -340,9 +345,11 @@ private[spark] class MapOutputTrackerMaster(conf: SparkConf)
 }
 
 /**
- * MapOutputTracker for the executors, which fetches map output information from the driver's
- * MapOutputTrackerMaster.
- */
+  * <br>MapOutputTracker for the executors, which fetches map output information from the driver's MapOutputTrackerMaster.
+  *
+  * <br>为executors创建一个Map输出的跟踪器，他可以从Driver的 map输出跟踪器 获取输出信息
+  *
+  */
 private[spark] class MapOutputTrackerWorker(conf: SparkConf) extends MapOutputTracker(conf) {
   protected val mapStatuses: Map[Int, Array[MapStatus]] =
     new ConcurrentHashMap[Int, Array[MapStatus]]
@@ -374,10 +381,10 @@ private[spark] object MapOutputTracker extends Logging {
   // any of the statuses is null (indicating a missing location due to a failed mapper),
   // throw a FetchFailedException.
   private def convertMapStatuses(
-      shuffleId: Int,
-      reduceId: Int,
-      statuses: Array[MapStatus]): Array[(BlockManagerId, Long)] = {
-    assert (statuses != null)
+                                  shuffleId: Int,
+                                  reduceId: Int,
+                                  statuses: Array[MapStatus]): Array[(BlockManagerId, Long)] = {
+    assert(statuses != null)
     statuses.map {
       status =>
         if (status == null) {
