@@ -22,8 +22,12 @@ import java.nio.ByteBuffer
 import org.apache.spark.TaskState.TaskState
 
 /**
- * A pluggable interface used by the Executor to send updates to the cluster scheduler.
- */
+  * A pluggable interface used by the Executor to send updates to the cluster scheduler.
+  *
+  * <br>
+  * <br>Executor用来发送更新给集群调度器的可插拔接口
+  * <br>
+  */
 private[spark] trait ExecutorBackend {
   def statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer)
 }

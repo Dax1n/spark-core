@@ -23,11 +23,20 @@ import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.deploy.DriverDescription
 import org.apache.spark.util.Utils
 
+/**
+  * Spark提交的应用的Driver信息
+  * <br>
+  *
+  * @param startTime  开始时间
+  * @param id
+  * @param desc       Driver描述信息
+  * @param submitDate 提交日期
+  */
 private[spark] class DriverInfo(
-    val startTime: Long,
-    val id: String,
-    val desc: DriverDescription,
-    val submitDate: Date)
+                                 val startTime: Long,
+                                 val id: String,
+                                 val desc: DriverDescription,
+                                 val submitDate: Date)
   extends Serializable {
 
   @transient var state: DriverState.Value = DriverState.SUBMITTED

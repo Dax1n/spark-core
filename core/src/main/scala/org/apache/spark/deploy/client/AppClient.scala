@@ -57,8 +57,7 @@ private[spark] class AppClient(
                                 masterUrls: Array[String],
                                 appDescription: ApplicationDescription,
                                 listener: AppClientListener,
-                                conf: SparkConf)
-  extends Logging {
+                                conf: SparkConf) extends Logging {
 
   val masterAkkaUrls = masterUrls.map(Master.toAkkaUrl(_, AkkaUtils.protocol(actorSystem)))
 
@@ -79,9 +78,13 @@ private[spark] class AppClient(
     // To avoid calling listener.dead() multiple times
     var registrationRetryTimer: Option[Cancellable] = None
 
+    /**
+      * SparkSubmit端的ClientActor负责与Master通信，在preStart中完成向Master的注册
+      */
     override def preStart() {
       context.system.eventStream.subscribe(self, classOf[RemotingLifecycleEvent])
       try {
+        //SparkSubmit端的ClientActor负责与Master通信，完成向Master的注册
         registerWithMaster()
       } catch {
         case e: Exception =>
@@ -199,6 +202,11 @@ private[spark] class AppClient(
 
   }
 
+  /**
+    * SparkSubmit端的ClientActor的创建
+    *
+    *
+    */
   def start() {
     // Just launch an actor; it will call back into the listener.
     actor = actorSystem.actorOf(Props(new ClientActor))

@@ -35,14 +35,21 @@ import org.apache.spark.scheduler.TaskDescription
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
 import org.apache.spark.util.{ActorLogReceive, AkkaUtils, SignalLogger, Utils}
 
+/**
+  * <br>Executor用来发送更新给集群调度器的可插拔接口
+  * <br>
+  * @param driverUrl
+  * @param executorId
+  * @param hostPort
+  * @param cores
+  * @param userClassPath
+  * @param env
+  */
 private[spark] class CoarseGrainedExecutorBackend(
     driverUrl: String,
     executorId: String,
     hostPort: String,
-    cores: Int,
-    userClassPath: Seq[URL],
-    env: SparkEnv)
-  extends Actor with ActorLogReceive with ExecutorBackend with Logging {
+    cores: Int, userClassPath: Seq[URL], env: SparkEnv) extends Actor with ActorLogReceive with ExecutorBackend with Logging {
 
   Utils.checkHostPort(hostPort, "Expected hostport")
 

@@ -78,6 +78,14 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
   // Executors we have requested the cluster manager to kill that have not died yet
   private val executorsPendingToRemove = new HashSet[String]
 
+  /**
+    *
+    * 客户端称为Driver的原因：因为类名字为：DriverActor
+    * <br><br>
+    * 负责 Driver和Worker的Executors通信
+    *
+    * @param sparkProperties
+    */
   class DriverActor(sparkProperties: Seq[(String, String)]) extends Actor with ActorLogReceive {
     override protected def log = CoarseGrainedSchedulerBackend.this.log
 
@@ -87,7 +95,13 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
       // Listen for remote client disconnection events, since they don't go through Akka's watch()
       context.system.eventStream.subscribe(self, classOf[RemotingLifecycleEvent])
 
-      // Periodically revive offers to allow delay scheduling to work
+
+      /**
+        *Periodically revive offers to allow delay scheduling to work
+        * <br>
+        *   定期恢复延迟调度的任务去执行的时间间隔
+        *
+        */
       val reviveInterval = conf.getLong("spark.scheduler.revive.interval", 1000)
       import context.dispatcher
       context.system.scheduler.schedule(0.millis, reviveInterval.millis, self, ReviveOffers)

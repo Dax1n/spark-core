@@ -21,6 +21,7 @@ import com.codahale.metrics.{Gauge, MetricRegistry}
 
 import org.apache.spark.metrics.source.Source
 
+
 class ApplicationSource(val application: ApplicationInfo) extends Source {
   override val metricRegistry = new MetricRegistry()
   override val sourceName = "%s.%s.%s".format("application", application.desc.name,

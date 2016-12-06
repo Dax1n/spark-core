@@ -54,8 +54,8 @@ private[spark] class SparkDeploySchedulerBackend(
   val totalExpectedCores = maxCores.getOrElse(0)
 
   /**
-    *<br> 1： super.start() 完成driverActor的创建
-    *<br> 2： 方法其余完成clientActor的创建
+    * <br> 1： super.start() 完成driverActor的创建
+    * <br> 2： 方法其余完成clientActor的创建
     *
     */
   override def start() {
@@ -95,13 +95,22 @@ private[spark] class SparkDeploySchedulerBackend(
     // Start executors with a few necessary configs for registering with the scheduler
     val sparkJavaOpts = Utils.sparkJavaOpts(conf, SparkConf.isExecutorStartupConf)
     val javaOpts = sparkJavaOpts ++ extraJavaOpts
-    val command = Command("org.apache.spark.executor.CoarseGrainedExecutorBackend",
-      args, sc.executorEnvs, classPathEntries ++ testingClassPath, libraryPathEntries, javaOpts)
+
+    /**
+      * <br>
+      * <br>使用java命令行启动org.apache.spark.executor.CoarseGrainedExecutorBackend
+      * <br>在standalone模式下 执行作业的worker的executor线程名字为：CoarseGrainedExecutorBackend
+      * <br>
+      */
+    val command = Command("org.apache.spark.executor.CoarseGrainedExecutorBackend", args, sc.executorEnvs, classPathEntries ++ testingClassPath, libraryPathEntries, javaOpts)
     val appUIAddress = sc.ui.map(_.appUIAddress).getOrElse("")
-    val appDesc = new ApplicationDescription(sc.appName, maxCores, sc.executorMemory, command,
-      appUIAddress, sc.eventLogDir, sc.eventLogCodec)
+    val appDesc = new ApplicationDescription(sc.appName, maxCores, sc.executorMemory, command, appUIAddress, sc.eventLogDir, sc.eventLogCodec)
 
     client = new AppClient(sc.env.actorSystem, masters, appDesc, this, conf)
+
+    /**
+      * 完成ClientActor的创建
+      */
     client.start()
 
     waitForRegistration()

@@ -59,7 +59,7 @@ import org.apache.spark.util.{ActorLogReceive, AkkaUtils, SignalLogger, Utils}
   *
   * Master继承至akka.actor
   *
-  *  在主构造器中完成Master配置信息的设置
+  * 在主构造器中完成Master配置信息的设置
   *
   */
 private[spark] class Master(
@@ -86,9 +86,9 @@ private[spark] class Master(
   val RECOVERY_MODE = conf.get("spark.deploy.recoveryMode", "NONE")
 
   /**
-    *<br> class WorkerInfo( val id: String, val host: String, val port: Int,val cores: Int,  val memory: Int,val actor: ActorRef, val webUiPort: Int,val publicAddress: String)
-    *<br>
-    *<br>
+    * <br> class WorkerInfo( val id: String, val host: String, val port: Int,val cores: Int,  val memory: Int,val actor: ActorRef, val webUiPort: Int,val publicAddress: String)
+    * <br>
+    * <br>
     *
     */
   val workers = new HashSet[WorkerInfo]
@@ -114,7 +114,7 @@ private[spark] class Master(
   val idToApp = new HashMap[String, ApplicationInfo]
 
   /**
-    *  val actorToApp = new HashMap[ActorRef, ApplicationInfo]
+    * val actorToApp = new HashMap[ActorRef, ApplicationInfo]
     */
   val actorToApp = new HashMap[ActorRef, ApplicationInfo]
   /**
@@ -133,13 +133,13 @@ private[spark] class Master(
   val completedApps = new ArrayBuffer[ApplicationInfo]
   var nextAppNumber = 0
   /**
-    *  val appIdToUI = new HashMap[String, SparkUI]
+    * val appIdToUI = new HashMap[String, SparkUI]
     */
   val appIdToUI = new HashMap[String, SparkUI]
 
   val drivers = new HashSet[DriverInfo]
   /**
-    *  val completedDrivers = new ArrayBuffer[DriverInfo]
+    * val completedDrivers = new ArrayBuffer[DriverInfo]
     */
   val completedDrivers = new ArrayBuffer[DriverInfo]
   /**
@@ -319,7 +319,8 @@ private[spark] class Master(
       //如果当前Master状态为RecoveryState.STANDBY ，不回应Worker信息。
       if (state == RecoveryState.STANDBY) {
         // ignore, don't send response
-      } else if (idToWorker.contains(id)) { //如果包含WorkerInfo了，回复注册失败信息
+      } else if (idToWorker.contains(id)) {
+        //如果包含WorkerInfo了，回复注册失败信息
         sender ! RegisterWorkerFailed("Duplicate worker ID")
       } else {
 
@@ -406,15 +407,21 @@ private[spark] class Master(
       }
     }
 
+    /**
+      * 提交应用给Master，Master启动executor
+      */
     case RegisterApplication(description) => {
       if (state == RecoveryState.STANDBY) {
         // ignore, don't send response
       } else {
         logInfo("Registering app " + description.name)
         val app = createApplication(description, sender)
+
         registerApplication(app)
         logInfo("Registered app " + description.name + " with ID " + app.id)
+        //持久化app，实现容错
         persistenceEngine.addApplication(app)
+        //回复worker已经注册
         sender ! RegisteredApplication(app.id, masterUrl)
         schedule()
       }
@@ -629,15 +636,21 @@ private[spark] class Master(
   /**
     * Schedule the currently available resources among waiting apps. This method will be called
     * every time a new app joins or resource availability changes.
+    *
+    * <br>调度器：<br>  调度当前等待的apps分配可获取的资源。<br>  当每次有新的app加入或者有可获得资源这时候这个方法被调用
+    *
     */
   private def schedule() {
+
+    //如果
     if (state != RecoveryState.ALIVE) {
       return
     }
 
-    // First schedule drivers, they take strict precedence over applications
-    // Randomization helps balance drivers
-    val shuffledAliveWorkers = Random.shuffle(workers.toSeq.filter(_.state == WorkerState.ALIVE))
+    // First schedule drivers, they take strict precedence（优先；居先） over applications
+    // Randomization（ 随机化，不规则分布；随机选择） helps balance drivers
+    val shuffledAliveWorkers = Random.shuffle(workers.toSeq.filter(_.state == WorkerState.ALIVE)) //在workers中选择处于ALIVE状态的worker
+    //求存活的worker数量
     val numWorkersAlive = shuffledAliveWorkers.size
     var curPos = 0
 
@@ -787,13 +800,24 @@ private[spark] class Master(
     new ApplicationInfo(now, newApplicationId(date), desc, date, driver, defaultCores)
   }
 
+  /**
+    * <br>注册应用信息
+    *
+    * <br>如果应用在addressToApp映射中的话，跳过否则加到容器中
+    * <br>
+    *
+    * @param app ：ApplicationInfo  要注册的应用信息
+    */
   def registerApplication(app: ApplicationInfo): Unit = {
     val appAddress = app.driver.path.address
+
+    //
     if (addressToApp.contains(appAddress)) {
       logInfo("Attempted to re-register application at same address: " + appAddress)
       return
     }
 
+    //将应用信息存储到容器中
     applicationMetricsSystem.registerSource(app.appSource)
     apps += app
     idToApp(app.id) = app
