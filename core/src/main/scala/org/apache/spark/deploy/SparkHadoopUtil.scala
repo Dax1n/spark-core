@@ -35,22 +35,26 @@ import org.apache.spark.util.Utils
 import scala.collection.JavaConversions._
 
 /**
- * :: DeveloperApi ::
- * Contains util methods to interact with Hadoop from Spark.
- */
+  * :: DeveloperApi ::
+  *
+  * Contains util methods to interact with Hadoop from Spark.
+  * <br><br>
+  * 一些spark和hadoop交互的工具方法
+  *
+  */
 @DeveloperApi
 class SparkHadoopUtil extends Logging {
   val conf: Configuration = newConfiguration(new SparkConf())
   UserGroupInformation.setConfiguration(conf)
 
   /**
-   * Runs the given function with a Hadoop UserGroupInformation as a thread local variable
-   * (distributed to child threads), used for authenticating HDFS and YARN calls.
-   *
-   * IMPORTANT NOTE: If this function is going to be called repeated in the same process
-   * you need to look https://issues.apache.org/jira/browse/HDFS-3545 and possibly
-   * do a FileSystem.closeAllForUGI in order to avoid leaking Filesystems
-   */
+    * Runs the given function with a Hadoop UserGroupInformation as a thread local variable
+    * (distributed to child threads), used for authenticating HDFS and YARN calls.
+    *
+    * IMPORTANT NOTE: If this function is going to be called repeated in the same process
+    * you need to look https://issues.apache.org/jira/browse/HDFS-3545 and possibly
+    * do a FileSystem.closeAllForUGI in order to avoid leaking Filesystems
+    */
   def runAsSparkUser(func: () => Unit) {
     val user = Utils.getCurrentUserName()
     logDebug("running as user: " + user)
@@ -71,9 +75,9 @@ class SparkHadoopUtil extends Logging {
   def newConfiguration(): Configuration = newConfiguration(null)
 
   /**
-   * Return an appropriate (subclass) of Configuration. Creating config can initializes some Hadoop
-   * subsystems.
-   */
+    * Return an appropriate (subclass) of Configuration. Creating config can initializes some Hadoop
+    * subsystems.
+    */
   def newConfiguration(conf: SparkConf): Configuration = {
     val hadoopConf = new Configuration()
 
@@ -82,7 +86,7 @@ class SparkHadoopUtil extends Logging {
     if (conf != null) {
       // Explicitly check for S3 environment variables
       if (System.getenv("AWS_ACCESS_KEY_ID") != null &&
-          System.getenv("AWS_SECRET_ACCESS_KEY") != null) {
+        System.getenv("AWS_SECRET_ACCESS_KEY") != null) {
         hadoopConf.set("fs.s3.awsAccessKeyId", System.getenv("AWS_ACCESS_KEY_ID"))
         hadoopConf.set("fs.s3n.awsAccessKeyId", System.getenv("AWS_ACCESS_KEY_ID"))
         hadoopConf.set("fs.s3.awsSecretAccessKey", System.getenv("AWS_SECRET_ACCESS_KEY"))
@@ -102,32 +106,38 @@ class SparkHadoopUtil extends Logging {
   }
 
   /**
-   * Add any user credentials to the job conf which are necessary for running on a secure Hadoop
-   * cluster.
-   */
+    * Add any user credentials to the job conf which are necessary for running on a secure Hadoop
+    * cluster.
+    */
   def addCredentials(conf: JobConf) {}
 
-  def isYarnMode(): Boolean = { false }
+  def isYarnMode(): Boolean = {
+    false
+  }
 
-  def getCurrentUserCredentials(): Credentials = { null }
+  def getCurrentUserCredentials(): Credentials = {
+    null
+  }
 
   def addCurrentUserCredentials(creds: Credentials) {}
 
   def addSecretKeyToUserCredentials(key: String, secret: String) {}
 
-  def getSecretKeyFromUserCredentials(key: String): Array[Byte] = { null }
+  def getSecretKeyFromUserCredentials(key: String): Array[Byte] = {
+    null
+  }
 
   def loginUserFromKeytab(principalName: String, keytabFilename: String) {
     UserGroupInformation.loginUserFromKeytab(principalName, keytabFilename)
   }
 
   /**
-   * Returns a function that can be called to find Hadoop FileSystem bytes read. If
-   * getFSBytesReadOnThreadCallback is called from thread r at time t, the returned callback will
-   * return the bytes read on r since t.  Reflection is required because thread-level FileSystem
-   * statistics are only available as of Hadoop 2.5 (see HADOOP-10688).
-   * Returns None if the required method can't be found.
-   */
+    * Returns a function that can be called to find Hadoop FileSystem bytes read. If
+    * getFSBytesReadOnThreadCallback is called from thread r at time t, the returned callback will
+    * return the bytes read on r since t.  Reflection is required because thread-level FileSystem
+    * statistics are only available as of Hadoop 2.5 (see HADOOP-10688).
+    * Returns None if the required method can't be found.
+    */
   private[spark] def getFSBytesReadOnThreadCallback(): Option[() => Long] = {
     try {
       val threadStats = getFileSystemThreadStatistics()
@@ -136,7 +146,7 @@ class SparkHadoopUtil extends Logging {
       val baselineBytesRead = f()
       Some(() => f() - baselineBytesRead)
     } catch {
-      case e @ (_: NoSuchMethodException | _: ClassNotFoundException) => {
+      case e@(_: NoSuchMethodException | _: ClassNotFoundException) => {
         logDebug("Couldn't find method for retrieving thread-level FileSystem input data", e)
         None
       }
@@ -144,12 +154,12 @@ class SparkHadoopUtil extends Logging {
   }
 
   /**
-   * Returns a function that can be called to find Hadoop FileSystem bytes written. If
-   * getFSBytesWrittenOnThreadCallback is called from thread r at time t, the returned callback will
-   * return the bytes written on r since t.  Reflection is required because thread-level FileSystem
-   * statistics are only available as of Hadoop 2.5 (see HADOOP-10688).
-   * Returns None if the required method can't be found.
-   */
+    * Returns a function that can be called to find Hadoop FileSystem bytes written. If
+    * getFSBytesWrittenOnThreadCallback is called from thread r at time t, the returned callback will
+    * return the bytes written on r since t.  Reflection is required because thread-level FileSystem
+    * statistics are only available as of Hadoop 2.5 (see HADOOP-10688).
+    * Returns None if the required method can't be found.
+    */
   private[spark] def getFSBytesWrittenOnThreadCallback(): Option[() => Long] = {
     try {
       val threadStats = getFileSystemThreadStatistics()
@@ -158,7 +168,7 @@ class SparkHadoopUtil extends Logging {
       val baselineBytesWritten = f()
       Some(() => f() - baselineBytesWritten)
     } catch {
-      case e @ (_: NoSuchMethodException | _: ClassNotFoundException) => {
+      case e@(_: NoSuchMethodException | _: ClassNotFoundException) => {
         logDebug("Couldn't find method for retrieving thread-level FileSystem output data", e)
         None
       }
@@ -177,21 +187,21 @@ class SparkHadoopUtil extends Logging {
   }
 
   /**
-   * Using reflection to get the Configuration from JobContext/TaskAttemptContext. If we directly
-   * call `JobContext/TaskAttemptContext.getConfiguration`, it will generate different byte codes
-   * for Hadoop 1.+ and Hadoop 2.+ because JobContext/TaskAttemptContext is class in Hadoop 1.+
-   * while it's interface in Hadoop 2.+.
-   */
+    * Using reflection to get the Configuration from JobContext/TaskAttemptContext. If we directly
+    * call `JobContext/TaskAttemptContext.getConfiguration`, it will generate different byte codes
+    * for Hadoop 1.+ and Hadoop 2.+ because JobContext/TaskAttemptContext is class in Hadoop 1.+
+    * while it's interface in Hadoop 2.+.
+    */
   def getConfigurationFromJobContext(context: JobContext): Configuration = {
     val method = context.getClass.getMethod("getConfiguration")
     method.invoke(context).asInstanceOf[Configuration]
   }
 
   /**
-   * Get [[FileStatus]] objects for all leaf children (files) under the given base path. If the
-   * given path points to a file, return a single-element collection containing [[FileStatus]] of
-   * that file.
-   */
+    * Get [[FileStatus]] objects for all leaf children (files) under the given base path. If the
+    * given path points to a file, return a single-element collection containing [[FileStatus]] of
+    * that file.
+    */
   def listLeafStatuses(fs: FileSystem, basePath: Path): Seq[FileStatus] = {
     def recurse(path: Path) = {
       val (directories, leaves) = fs.listStatus(path).partition(_.isDir)
@@ -206,15 +216,22 @@ class SparkHadoopUtil extends Logging {
 object SparkHadoopUtil {
 
   private val hadoop = {
-    val yarnMode = java.lang.Boolean.valueOf(
-        System.getProperty("SPARK_YARN_MODE", System.getenv("SPARK_YARN_MODE")))
+
+    //判断是否是yarn模式
+    val yarnMode = java.lang.Boolean.valueOf(//大白话就是说：只要字符串是忽略大小写是true则返回true，否则返回false
+
+      // System.getenv获取指定的环境变量值。
+      //System.getProperty获取指定的系统属性。
+      System.getProperty("SPARK_YARN_MODE", System.getenv("SPARK_YARN_MODE")))
+
     if (yarnMode) {
+      //yarn模式
       try {
         Class.forName("org.apache.spark.deploy.yarn.YarnSparkHadoopUtil")
           .newInstance()
           .asInstanceOf[SparkHadoopUtil]
       } catch {
-       case e: Exception => throw new SparkException("Unable to load YARN support", e)
+        case e: Exception => throw new SparkException("Unable to load YARN support", e)
       }
     } else {
       new SparkHadoopUtil

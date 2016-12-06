@@ -18,15 +18,22 @@
 package org.apache.spark.util
 
 /**
- * An interface to represent clocks, so that they can be mocked out in unit tests.
+ * An interface to represent clocks, so that they can be mocked（假的；伪装的；模拟的） out in unit tests.
  */
 private[spark] trait Clock {
+
+  /**
+    *
+    * @return   System.currentTimeMillis()
+    */
   def getTimeMillis(): Long
   def waitTillTime(targetTime: Long): Long
 }
 
 /**
  * A clock backed by the actual time from the OS as reported by the `System` API.
+  *
+  *
  */
 private[spark] class SystemClock extends Clock {
 

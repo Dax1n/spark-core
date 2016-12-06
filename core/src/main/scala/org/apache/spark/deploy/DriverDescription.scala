@@ -17,6 +17,14 @@
 
 package org.apache.spark.deploy
 
+/**
+  *
+  * @param jarUrl
+  * @param mem  内存
+  * @param cores  核心数
+  * @param supervise  失败是否重启
+  * @param command
+  */
 private[spark] class DriverDescription(
     val jarUrl: String,
     val mem: Int,

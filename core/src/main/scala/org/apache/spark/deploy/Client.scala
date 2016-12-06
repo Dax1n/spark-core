@@ -141,6 +141,7 @@ private class ClientActor(driverArgs: ClientArguments, conf: SparkConf)
 
 /**
  * Executable utility for starting and terminating drivers inside of a standalone cluster.
+  * 这个脚本过期
  */
 object Client {
   def main(args: Array[String]) {

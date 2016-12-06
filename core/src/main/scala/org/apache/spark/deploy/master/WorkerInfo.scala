@@ -24,6 +24,17 @@ import akka.actor.ActorRef
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.util.Utils
 
+/**
+  *
+  * @param id
+  * @param host
+  * @param port
+  * @param cores
+  * @param memory
+  * @param actor：ActorRef  worker的actor引用
+  * @param webUiPort
+  * @param publicAddress
+  */
 private[spark] class WorkerInfo(
     val id: String,
     val host: String,

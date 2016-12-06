@@ -43,6 +43,13 @@ private[spark] class DriverInfo(
   /* If we fail when launching the driver, the exception is stored here. */
   @transient var exception: Option[Exception] = None
   /* Most recent worker assigned to this driver */
+  /**
+    * 最新被指定给Driver的worker信息
+    *<br>
+    *   <br>
+    * Most recent worker assigned to this driver
+    *
+    */
   @transient var worker: Option[WorkerInfo] = None
 
   init()

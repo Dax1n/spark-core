@@ -20,17 +20,15 @@ package org.apache.spark.deploy.worker
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.{UUID, Date}
+import java.util.{Date, UUID}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.{HashMap, HashSet}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Random
-
 import akka.actor._
 import akka.remote.{DisassociatedEvent, RemotingLifecycleEvent}
-
 import org.apache.spark.{Logging, SecurityManager, SparkConf}
 import org.apache.spark.deploy.{Command, ExecutorDescription, ExecutorState}
 import org.apache.spark.deploy.DeployMessages._
@@ -47,36 +45,37 @@ import org.apache.spark.util.{ActorLogReceive, AkkaUtils, SignalLogger, Utils}
   * @param webUiPort
   * @param cores
   * @param memory
-  * @param masterAkkaUrls: Array[String]  Each url should be a valid akka url.(高可用时候是多个url)
+  * @param masterAkkaUrls : Array[String]  Each url should be a valid akka url.(高可用时候是多个url)
   * @param actorSystemName
   * @param actorName
   * @param workDirPath
   * @param conf
   * @param securityMgr
   *
-  * actorSystem 创建Worker 完成主构造器代码执行
+  *                       actorSystem 创建Worker 完成主构造器代码执行
   *
   *
   */
 private[spark] class Worker(
-    host: String,
-    port: Int,
-    webUiPort: Int,
-    cores: Int,
-    memory: Int,
-    masterAkkaUrls: Array[String],
-    actorSystemName: String,
-    actorName: String,
-    workDirPath: String = null,
-    val conf: SparkConf,
-    val securityMgr: SecurityManager)
+                             host: String,
+                             port: Int,
+                             webUiPort: Int,
+                             cores: Int,
+                             memory: Int,
+                             masterAkkaUrls: Array[String],
+                             actorSystemName: String,
+                             actorName: String,
+                             workDirPath: String = null,
+                             val conf: SparkConf,
+                             val securityMgr: SecurityManager)
   extends Actor with ActorLogReceive with Logging {
+
   import context.dispatcher
 
   Utils.checkHost(host, "Expected hostname")
-  assert (port > 0)
+  assert(port > 0)
 
-  def createDateFormat = new SimpleDateFormat("yyyyMMddHHmmss")  // For worker and executor IDs
+  def createDateFormat = new SimpleDateFormat("yyyyMMddHHmmss") // For worker and executor IDs
 
   // Send a heartbeat every (heartbeat timeout) / 4 milliseconds
   /**
@@ -111,7 +110,7 @@ private[spark] class Worker(
   var master: ActorSelection = null
   var masterAddress: Address = null
   var activeMasterUrl: String = ""
-  var activeMasterWebUiUrl : String = ""
+  var activeMasterWebUiUrl: String = ""
   val akkaUrl = AkkaUtils.address(
     AkkaUtils.protocol(context.system),
     actorSystemName,
@@ -134,11 +133,14 @@ private[spark] class Worker(
     */
   val executors = new HashMap[String, ExecutorRunner]
   /**
-    *   val finishedExecutors = new HashMap[String, ExecutorRunner]
+    * val finishedExecutors = new HashMap[String, ExecutorRunner]
     */
   val finishedExecutors = new HashMap[String, ExecutorRunner]
   /**
     * val drivers = new HashMap[String, DriverRunner]
+    *
+    * driverId和DriverRunner的映射
+    *
     */
   val drivers = new HashMap[String, DriverRunner]
   val finishedDrivers = new HashMap[String, DriverRunner]
@@ -164,6 +166,7 @@ private[spark] class Worker(
   var registrationRetryTimer: Option[Cancellable] = None
 
   def coresFree: Int = cores - coresUsed
+
   def memoryFree: Int = memory - memoryUsed
 
   /**
@@ -176,11 +179,11 @@ private[spark] class Worker(
       // This sporadically fails - not sure why ... !workDir.exists() && !workDir.mkdirs()
       // So attempting to create and then check if directory was created or not.
       workDir.mkdirs()
-      if ( !workDir.exists() || !workDir.isDirectory) {
+      if (!workDir.exists() || !workDir.isDirectory) {
         logError("Failed to create work directory " + workDir)
         System.exit(1)
       }
-      assert (workDir.isDirectory)
+      assert(workDir.isDirectory)
     } catch {
       case e: Exception =>
         logError("Failed to create work directory " + workDir, e)
@@ -249,13 +252,13 @@ private[spark] class Worker(
   }
 
   /**
-   * Re-register with the master because a network failure or a master failure has occurred.
-   * If the re-registration attempt threshold is exceeded, the worker exits with error.
-   * Note that for thread-safety this should only be called from the actor.
+    * Re-register with the master because a network failure or a master failure has occurred.
+    * If the re-registration attempt threshold is exceeded, the worker exits with error.
+    * Note that for thread-safety this should only be called from the actor.
     *
     * 重新注册
     *
-   */
+    */
   private def reregisterWithMaster(): Unit = {
     Utils.tryOrExit {
       //重试次数++
@@ -266,26 +269,27 @@ private[spark] class Worker(
         registrationRetryTimer = None
       } else if (connectionAttemptCount <= TOTAL_REGISTRATION_RETRIES) {
         logInfo(s"Retrying connection to master (attempt # $connectionAttemptCount)")
+
         /**
-         * Re-register with the active master this worker has been communicating with. If there
-         * is none, then it means this worker is still bootstrapping and hasn't established a
-         * connection with a master yet, in which case we should re-register with all masters.
-         *
-         * It is important to re-register only with the active master during failures. Otherwise,
-         * if the worker unconditionally attempts to re-register with all masters, the following
-         * race condition may arise and cause a "duplicate worker" error detailed in SPARK-4592:
-         *
-         *   (1) Master A fails and Worker attempts to reconnect to all masters
-         *   (2) Master B takes over and notifies Worker
-         *   (3) Worker responds by registering with Master B
-         *   (4) Meanwhile, Worker's previous reconnection attempt reaches Master B,
-         *       causing the same Worker to register with Master B twice
-         *
-         * Instead, if we only register with the known active master, we can assume that the
-         * old master must have died because another master has taken over. Note that this is
-         * still not safe if the old master recovers within this interval, but this is a much
-         * less likely scenario.
-         */
+          * Re-register with the active master this worker has been communicating with. If there
+          * is none, then it means this worker is still bootstrapping and hasn't established a
+          * connection with a master yet, in which case we should re-register with all masters.
+          *
+          * It is important to re-register only with the active master during failures. Otherwise,
+          * if the worker unconditionally attempts to re-register with all masters, the following
+          * race condition may arise and cause a "duplicate worker" error detailed in SPARK-4592:
+          *
+          * (1) Master A fails and Worker attempts to reconnect to all masters
+          * (2) Master B takes over and notifies Worker
+          * (3) Worker responds by registering with Master B
+          * (4) Meanwhile, Worker's previous reconnection attempt reaches Master B,
+          * causing the same Worker to register with Master B twice
+          *
+          * Instead, if we only register with the known active master, we can assume that the
+          * old master must have died because another master has taken over. Note that this is
+          * still not safe if the old master recovers within this interval, but this is a much
+          * less likely scenario.
+          */
         if (master != null) {
           //master != null 直接注册
           master ! RegisterWorker(
@@ -298,15 +302,16 @@ private[spark] class Worker(
         // We have exceeded the initial registration retry threshold
         // All retries from now on should use a higher interval
         //连接超时   INITIAL_REGISTRATION_RETRIES重试次数
-        if (connectionAttemptCount == INITIAL_REGISTRATION_RETRIES) {//最后一次连接
+        if (connectionAttemptCount == INITIAL_REGISTRATION_RETRIES) {
+          //最后一次连接
           registrationRetryTimer.foreach(_.cancel())
           registrationRetryTimer = Some {
 
-         //final def schedule(initialDelay: FiniteDuration,interval: FiniteDuration, receiver: ActorRef, message: Any)
-//            self 也是actor继承来的
+            //final def schedule(initialDelay: FiniteDuration,interval: FiniteDuration, receiver: ActorRef, message: Any)
+            //            self 也是actor继承来的
             //给自己发消息，在recieve中模式匹配处理消息
-         context.system.scheduler.schedule(PROLONGED_REGISTRATION_RETRY_INTERVAL,
-           PROLONGED_REGISTRATION_RETRY_INTERVAL, self, ReregisterWithMaster)
+            context.system.scheduler.schedule(PROLONGED_REGISTRATION_RETRY_INTERVAL,
+              PROLONGED_REGISTRATION_RETRY_INTERVAL, self, ReregisterWithMaster)
 
           }
         }
@@ -327,7 +332,7 @@ private[spark] class Worker(
 
     //registrationRetryTimer是worker的成员属性，标记是否注册
     registrationRetryTimer match {
-        //registrationRetryTimer初始值为None，未注册
+      //registrationRetryTimer初始值为None，未注册
       case None =>
         registered = false
         tryRegisterAllMasters()
@@ -335,7 +340,7 @@ private[spark] class Worker(
         registrationRetryTimer = Some {
           //used when a worker attempts to reconnect to a master
           //ReregisterWithMaster 是重新连接的消息，发送给自己，使得自己重新连接
-        context.system.scheduler.schedule(INITIAL_REGISTRATION_RETRY_INTERVAL, INITIAL_REGISTRATION_RETRY_INTERVAL, self, ReregisterWithMaster)
+          context.system.scheduler.schedule(INITIAL_REGISTRATION_RETRY_INTERVAL, INITIAL_REGISTRATION_RETRY_INTERVAL, self, ReregisterWithMaster)
         }
       case Some(_) =>
         logInfo("Not spawning another attempt to register with the master, since there is an" +
@@ -362,7 +367,9 @@ private[spark] class Worker(
       }
 
     case SendHeartbeat =>
-      if (connected) { master ! Heartbeat(workerId) }
+      if (connected) {
+        master ! Heartbeat(workerId)
+      }
 
     case WorkDirCleanup =>
       // Spin up a separate thread (in a future) to do the dir cleanup; don't tie up worker actor
@@ -377,7 +384,7 @@ private[spark] class Worker(
           val appIdFromDir = dir.getName
           val isAppStillRunning = executors.values.map(_.appId).contains(appIdFromDir)
           dir.isDirectory && !isAppStillRunning &&
-          !Utils.doesDirectoryContainAnyNewFiles(dir, APP_DATA_RETENTION_SECS)
+            !Utils.doesDirectoryContainAnyNewFiles(dir, APP_DATA_RETENTION_SECS)
         }.foreach { dir =>
           logInfo(s"Removing directory: ${dir.getPath}")
           Utils.deleteRecursively(dir)
@@ -501,18 +508,19 @@ private[spark] class Worker(
         }
       }
 
+    /**
+      * 接收到master发送的消息：LaunchDriver<br>
+      * 如果没有理解错误的话： driverDesc中的command为org.apache.spark.executor.CoarseGrainedExecutorBackend<br>
+      * 如果没有理解错误的话：就是启动executor
+      */
     case LaunchDriver(driverId, driverDesc) => {
       logInfo(s"Asked to launch driver $driverId")
-      val driver = new DriverRunner(
-        conf,
-        driverId,
-        workDir,
-        sparkHome,
-        driverDesc.copy(command = Worker.maybeUpdateSSLSettings(driverDesc.command, conf)),
-        self,
-        akkaUrl)
+      val driver: DriverRunner = new DriverRunner(conf, driverId, workDir, sparkHome,
+                          driverDesc.copy(command = Worker.maybeUpdateSSLSettings(driverDesc.command, conf)), self, akkaUrl)
       drivers(driverId) = driver
+
       driver.start()
+
 
       coresUsed += driverDesc.cores
       memoryUsed += driverDesc.mem
@@ -626,15 +634,15 @@ private[spark] object Worker extends Logging {
   }
 
   def startSystemAndActor(
-      host: String,
-      port: Int,
-      webUiPort: Int,
-      cores: Int,
-      memory: Int,
-      masterUrls: Array[String],
-      workDir: String,
-      workerNumber: Option[Int] = None,
-      conf: SparkConf = new SparkConf): (ActorSystem, Int) = {
+                           host: String,
+                           port: Int,
+                           webUiPort: Int,
+                           cores: Int,
+                           memory: Int,
+                           masterUrls: Array[String],
+                           workDir: String,
+                           workerNumber: Option[Int] = None,
+                           conf: SparkConf = new SparkConf): (ActorSystem, Int) = {
 
     // The LocalSparkCluster runs multiple local sparkWorkerX actor systems
     /**
@@ -647,11 +655,11 @@ private[spark] object Worker extends Logging {
     val actorName = "Worker"
     val securityMgr = new SecurityManager(conf)
 
-    val (actorSystem, boundPort) = AkkaUtils.createActorSystem(systemName, host, port,conf = conf, securityManager = securityMgr)
+    val (actorSystem, boundPort) = AkkaUtils.createActorSystem(systemName, host, port, conf = conf, securityManager = securityMgr)
 
     val masterAkkaUrls = masterUrls.map(Master.toAkkaUrl(_, AkkaUtils.protocol(actorSystem)))
 
-    actorSystem.actorOf(Props(classOf[Worker], host, boundPort, webUiPort, cores, memory, masterAkkaUrls, systemName, actorName,  workDir, conf, securityMgr), name = actorName)
+    actorSystem.actorOf(Props(classOf[Worker], host, boundPort, webUiPort, cores, memory, masterAkkaUrls, systemName, actorName, workDir, conf, securityMgr), name = actorName)
 
     (actorSystem, boundPort)
   }
@@ -669,9 +677,9 @@ private[spark] object Worker extends Logging {
     val useNLC = "spark.ssl.useNodeLocalConf"
     if (isUseLocalNodeSSLConfig(cmd)) {
       val newJavaOpts = cmd.javaOpts
-          .filter(opt => !opt.startsWith(s"-D$prefix")) ++
-          conf.getAll.collect { case (key, value) if key.startsWith(prefix) => s"-D$key=$value" } :+
-          s"-D$useNLC=true"
+        .filter(opt => !opt.startsWith(s"-D$prefix")) ++
+        conf.getAll.collect { case (key, value) if key.startsWith(prefix) => s"-D$key=$value" } :+
+        s"-D$useNLC=true"
       cmd.copy(javaOpts = newJavaOpts)
     } else {
       cmd

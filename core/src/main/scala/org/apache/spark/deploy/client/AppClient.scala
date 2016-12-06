@@ -94,10 +94,14 @@ private[spark] class AppClient(
       }
     }
 
+    /**
+      * appClient负责向master注册应用
+      */
     def tryRegisterAllMasters() {
       for (masterAkkaUrl <- masterAkkaUrls) {
         logInfo("Connecting to master " + masterAkkaUrl + "...")
         val actor = context.actorSelection(masterAkkaUrl)
+        //appClient负责向master注册应用
         actor ! RegisterApplication(appDescription)
       }
     }
@@ -135,6 +139,7 @@ private[spark] class AppClient(
     }
 
     override def receiveWithLogging = {
+      //Master回复的信息，通知appClient注册成功
       case RegisteredApplication(appId_, masterUrl) =>
         appId = appId_
         registered = true

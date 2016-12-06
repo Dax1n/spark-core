@@ -143,7 +143,14 @@ private[spark] class Master(
     */
   val completedDrivers = new ArrayBuffer[DriverInfo]
   /**
+    *
+    * <br>
+    * <br>存储 “等待的Driver信息”
+    * <br>
+    *
     * val waitingDrivers = new ArrayBuffer[DriverInfo]
+    *
+    *
     */
   val waitingDrivers = new ArrayBuffer[DriverInfo]
   // Drivers currently spooled for scheduling
@@ -181,9 +188,32 @@ private[spark] class Master(
 
   private var recoveryCompletionTask: Cancellable = _
 
-  // As a temporary workaround before better ways of configuring memory, we allow users to set
-  // a flag that will perform round-robin scheduling across the nodes (spreading out each app
-  // among all the nodes) instead of trying to consolidate each app onto a small # of nodes.
+
+  /**
+    * Round Robin，中文名是轮询调度，是一种服务器计算方法。<br><br><br>
+    * As a temporary workaround（工作区） before better ways of configuring memory, we allow users to set
+    * a flag that will perform round-robin scheduling across the nodes (spreading out each app
+    * among all the nodes) instead of trying to consolidate（巩固，加强） each app onto a small # of nodes.
+    * <br><br>
+    * spread out :展开；铺开；伸张
+    * <br><br>
+    *  spark.deploy.spreadOut = true 的话。SpreadOut分配策略是一种以round-robin方式遍历集群所有可用Worker，分配Worker资源，来启动创建Executor的策略，
+    * 好处是尽可能的将cores分配到各个节点，最大化负载均衡和高并行。（默认值：Spark默认提供了一种在各个节点进行round-robin的调度）
+    * <br><br><br><br>
+    *
+    * spark.deploy.spreadOut = flase 的话。非SpreadOut会尽可能的根据每个Worker的剩余资源来启动Executor，这样启动的Executor可能只在集群的一小部分机器的Worker上。
+    * 这样做对node较少的集群还可以，集群规模大了，Executor的并行度和机器负载均衡就不能够保证了。
+    *
+    * <br><br>
+    *   大白话的意思就是：<br>1）spark.deploy.spreadOut = true  ->Spark作业尽可能地打散分布在集群的各个节点上
+    *   <br>2）spark.deploy.spreadOut = flase   ->Spark作业尽可能集中分布在集群的某一些节点上
+    *   <br><br>
+    * 引用的网址为：  http://www.csdn123.com/html/topnews201408/43/743.htm
+    *
+    * spreadOutApps = true  打散<br>
+    * spreadOutApps = flase 集中
+    *
+    */
   val spreadOutApps = conf.getBoolean("spark.deploy.spreadOut", true)
 
   // Default maxCores for applications that don't specify it (i.e. pass Int.MaxValue)
@@ -409,19 +439,23 @@ private[spark] class Master(
 
     /**
       * 提交应用给Master，Master启动executor
+      *
+      * <br>（如果没有理解错误的话）description中的command应该是：val command = Command("org.apache.spark.executor.CoarseGrainedExecutorBackend"，其余参数略）
+      * 代码位置：类的 SparkDeploySchedulerBackend中的command
+      *
       */
     case RegisterApplication(description) => {
       if (state == RecoveryState.STANDBY) {
         // ignore, don't send response
       } else {
         logInfo("Registering app " + description.name)
-        val app = createApplication(description, sender)
+        val app = createApplication(description, sender) //sender应该是clientActor
 
         registerApplication(app)
         logInfo("Registered app " + description.name + " with ID " + app.id)
         //持久化app，实现容错
         persistenceEngine.addApplication(app)
-        //回复worker已经注册
+        //回复appClient已经注册（这一块不是worker）
         sender ! RegisteredApplication(app.id, masterUrl)
         schedule()
       }
@@ -464,6 +498,10 @@ private[spark] class Master(
       }
     }
 
+    /**
+      * Worker发送来的消息，告诉Driver当前worker状态
+      *
+      */
     case DriverStateChanged(driverId, state, exception) => {
       state match {
         case DriverState.ERROR | DriverState.FINISHED | DriverState.KILLED | DriverState.FAILED =>
@@ -637,7 +675,9 @@ private[spark] class Master(
     * Schedule the currently available resources among waiting apps. This method will be called
     * every time a new app joins or resource availability changes.
     *
-    * <br>调度器：<br>  调度当前等待的apps分配可获取的资源。<br>  当每次有新的app加入或者有可获得资源这时候这个方法被调用
+    * <br>调度器：
+    * <br>  调度当前等待的apps分配可获取的资源。
+    * <br>  当每次有新的app加入或者有可获得资源这时候这个方法被调用
     *
     */
   private def schedule() {
@@ -652,19 +692,22 @@ private[spark] class Master(
     val shuffledAliveWorkers = Random.shuffle(workers.toSeq.filter(_.state == WorkerState.ALIVE)) //在workers中选择处于ALIVE状态的worker
     //求存活的worker数量
     val numWorkersAlive = shuffledAliveWorkers.size
-    var curPos = 0
+    var curPos = 0 //worker的当前标号
 
     for (driver <- waitingDrivers.toList) {
-      // iterate over a copy of waitingDrivers
-      // We assign workers to each waiting driver in a round-robin fashion. For each driver, we
-      // start from the last worker that was assigned a driver, and continue onwards until we have
-      // explored all alive workers.
+      //workers 是spark集群的slave节点（worker节点）
+      // iterate over a copy of waitingDrivers  迭代waitingDrivers的一个副本
+      // We assign workers to each waiting driver in a round-robin fashion. For each driver,    我们制定workers给每一个等待的Driver
+      // we  start from the last worker that was assigned a driver, and continue onwards(向前) until we have  我们冲上一次指定的worker位置开始继续向前指定
+      // explored all alive workers.//知道所有存活的workers都指定完毕
       var launched = false
       var numWorkersVisited = 0
       while (numWorkersVisited < numWorkersAlive && !launched) {
         val worker = shuffledAliveWorkers(curPos)
         numWorkersVisited += 1
+        //当前遍历的worker如果满足内存大于提交应用需要的内存和满足需要的core数目的话，
         if (worker.memoryFree >= driver.desc.mem && worker.coresFree >= driver.desc.cores) {
+
           launchDriver(worker, driver)
           waitingDrivers -= driver
           launched = true
@@ -673,10 +716,13 @@ private[spark] class Master(
       }
     }
 
+
+    //上面代码是兼容老的，下面代码是新的
     // Right now this is a very simple FIFO scheduler. We keep trying to fit in the first app
     // in the queue, then the second app, etc.
     if (spreadOutApps) {
       // Try to spread out each app among all the nodes, until it has all its cores
+      //尽可能的把每一个app作业分布在集群的所有节点上，在分配过程知道得到该有的Cpu核数为止
       for (app <- waitingApps if app.coresLeft > 0) {
         val usableWorkers = workers.toArray.filter(_.state == WorkerState.ALIVE)
           .filter(canUse(app, _)).sortBy(_.coresFree).reverse
@@ -702,6 +748,7 @@ private[spark] class Master(
       }
     } else {
       // Pack each app into as few nodes as possible until we've assigned all its cores
+      //极可能集中在一些节点上
       for (worker <- workers if worker.coresFree > 0 && worker.state == WorkerState.ALIVE) {
         for (app <- waitingApps if app.coresLeft > 0) {
           if (canUse(app, worker)) {
@@ -794,6 +841,12 @@ private[spark] class Master(
     schedule()
   }
 
+  /**
+    *
+    * @param desc
+    * @param driver
+    * @return 返回一个ApplicationInfo
+    */
   def createApplication(desc: ApplicationDescription, driver: ActorRef): ApplicationInfo = {
     val now = System.currentTimeMillis()
     val date = new Date(now)
@@ -971,11 +1024,20 @@ private[spark] class Master(
     new DriverInfo(now, newDriverId(date), desc, date)
   }
 
+  /**
+    *
+    * @param worker 分配给该Driver的worker
+    * @param driver Driver信息 ，当前提交应用的Driver信息
+    */
   def launchDriver(worker: WorkerInfo, driver: DriverInfo) {
     logInfo("Launching driver " + driver.id + " on worker " + worker.id)
+    //把Driver信息保存到worker中
     worker.addDriver(driver)
+
     driver.worker = Some(worker)
+    //发送消息给worker
     worker.actor ! LaunchDriver(driver.id, driver.desc)
+
     driver.state = DriverState.RUNNING
   }
 
