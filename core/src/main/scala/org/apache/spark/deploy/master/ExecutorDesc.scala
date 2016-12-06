@@ -19,6 +19,14 @@ package org.apache.spark.deploy.master
 
 import org.apache.spark.deploy.{ExecutorDescription, ExecutorState}
 
+/**
+  *
+  * @param id    Executor的编号
+  * @param application  属于哪一个应用
+  * @param worker   属于哪一个Worker
+  * @param cores   核心数
+  * @param memory  内存
+  */
 private[spark] class ExecutorDesc(
     val id: Int,
     val application: ApplicationInfo,

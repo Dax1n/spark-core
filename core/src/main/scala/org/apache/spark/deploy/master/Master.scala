@@ -205,9 +205,9 @@ private[spark] class Master(
     * 这样做对node较少的集群还可以，集群规模大了，Executor的并行度和机器负载均衡就不能够保证了。
     *
     * <br><br>
-    *   大白话的意思就是：<br>1）spark.deploy.spreadOut = true  ->Spark作业尽可能地打散分布在集群的各个节点上
-    *   <br>2）spark.deploy.spreadOut = flase   ->Spark作业尽可能集中分布在集群的某一些节点上
-    *   <br><br>
+    * 大白话的意思就是：<br>1）spark.deploy.spreadOut = true  ->Spark作业尽可能地打散分布在集群的各个节点上
+    * <br>2）spark.deploy.spreadOut = flase   ->Spark作业尽可能集中分布在集群的某一些节点上
+    * <br><br>
     * 引用的网址为：  http://www.csdn123.com/html/topnews201408/43/743.htm
     *
     * spreadOutApps = true  打散<br>
@@ -666,6 +666,16 @@ private[spark] class Master(
     * Can an app use the given worker? True if the worker has enough memory and we haven't already
     * launched an executor for the app on it (right now the standalone backend doesn't like having
     * two executors on the same worker).
+    *
+    * 判断应用是否可以使用这个worker？
+    * <br><br>
+    * 判断依据：
+    * <br>1：该worker拥有足够的内存
+    * <br>2：该app还没有在这个worker上启动executor<br>
+    * <br>注意：<br>
+    * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;目前standalone backend 对于同一个app不会在相同的Worker上启动两个executor
+    * （但是：不同的app可以在该worker上分别启动属于自己的一个executor（目前新版本已经没有这个限制了））
+    *
     */
   def canUse(app: ApplicationInfo, worker: WorkerInfo): Boolean = {
     worker.memoryFree >= app.desc.memoryPerSlave && !worker.hasExecutor(app)
@@ -723,33 +733,72 @@ private[spark] class Master(
     if (spreadOutApps) {
       // Try to spread out each app among all the nodes, until it has all its cores
       //尽可能的把每一个app作业分布在集群的所有节点上，在分配过程知道得到该有的Cpu核数为止
+
+      //if app.coresLeft > 0 作用：应用需要的核数 没分配一次减少一次，只要还有核没分配的话，就再次循环分配
       for (app <- waitingApps if app.coresLeft > 0) {
+
+        //过滤掉DEAD状态的Worker（因为Worker超时不立马移除掉，而是修改为Dead状态，之后重试连接如果还没有连接则移除）
+        //过滤掉可以使用的worker（过滤掉条件：内存满足，而且没在改worker上启动executor），最后按照核心数排序
         val usableWorkers = workers.toArray.filter(_.state == WorkerState.ALIVE)
-          .filter(canUse(app, _)).sortBy(_.coresFree).reverse
+          .filter(canUse(app, _)).sortBy(_.coresFree).reverse //
+
+
+        //usableWorkers为可用的worker数组
+        /**
+          * numUsable可用的worker数
+          */
         val numUsable = usableWorkers.length
+
+        //分配numUsable大小的数组
+        /**
+          * 每一可用worker（次序）分配出去的核心数存储在数组对应位置的元素中
+          */
         val assigned = new Array[Int](numUsable) // Number of cores to give on each node
-        var toAssign = math.min(app.coresLeft, usableWorkers.map(_.coresFree).sum)
+
+
+        /**
+          * 求 “numUsable”与“所有可用worker的核心数的总和”的最小值
+          * 这么做的目的：
+          * <br>1：当可用worker的所有核心数总和小于app所需要的核心数时候，那么只能把所有的可用核心数全给该app了（尽管可用的核心数不够）<br>
+          * <br>2：当app所需要的核心数目小于“所有可用worker的核心数的总和”时候，直接按需分配<br>
+          * <br><br>
+          * <br>等待需要分配的核数
+          */
+        var toAssign = math.min(app.coresLeft, usableWorkers.map(_.coresFree).sum) //即将要分配的核数
+
+
         var pos = 0
+        //轮流分配核数，每一轮每一个worker分配出去一个核心。多次循环知道分配完毕
         while (toAssign > 0) {
+          //当前该worker（usableWorkers(pos)）已经分配出去assigned(pos)个核心数，如果还有的话继续分配
+          //如果该worker没有的话，pos向后移动，换下一个worker分配
           if (usableWorkers(pos).coresFree - assigned(pos) > 0) {
             toAssign -= 1
             assigned(pos) += 1
           }
           pos = (pos + 1) % numUsable
         }
+
         // Now that we've decided how many cores to give on each node, let's actually give them
         for (pos <- 0 until numUsable) {
           if (assigned(pos) > 0) {
+            //该usableWorkers(pos)分配出去了assigned(pos)个核心数
             val exec = app.addExecutor(usableWorkers(pos), assigned(pos))
+
+            //启动worker上的executor
             launchExecutor(usableWorkers(pos), exec)
+            //标记运行状态
             app.state = ApplicationState.RUNNING
           }
         }
       }
     } else {
       // Pack each app into as few nodes as possible until we've assigned all its cores
-      //极可能集中在一些节点上
+      //尽可能集中在一些节点上
+
+      //
       for (worker <- workers if worker.coresFree > 0 && worker.state == WorkerState.ALIVE) {
+        //
         for (app <- waitingApps if app.coresLeft > 0) {
           if (canUse(app, worker)) {
             val coresToUse = math.min(worker.coresFree, app.coresLeft)
@@ -764,13 +813,18 @@ private[spark] class Master(
     }
   }
 
+  /**
+    *
+    * @param worker  worker的节点信息（哪一个worker）
+    * @param exec ExecutorDesc包含信息
+    *             <br><br><br> id Executor的编号、application - 属于哪一个应用、worker - 属于哪一个Worker、cores - 核心数、memory - 内存
+    */
   def launchExecutor(worker: WorkerInfo, exec: ExecutorDesc) {
     logInfo("Launching executor " + exec.fullId + " on worker " + worker.id)
     worker.addExecutor(exec)
-    worker.actor ! LaunchExecutor(masterUrl,
-      exec.application.id, exec.id, exec.application.desc, exec.cores, exec.memory)
-    exec.application.driver ! ExecutorAdded(
-      exec.id, worker.id, worker.hostPort, exec.cores, exec.memory)
+    //
+    worker.actor ! LaunchExecutor(masterUrl, exec.application.id, exec.id, exec.application.desc, exec.cores, exec.memory)
+    exec.application.driver ! ExecutorAdded(exec.id, worker.id, worker.hostPort, exec.cores, exec.memory)
   }
 
   /**

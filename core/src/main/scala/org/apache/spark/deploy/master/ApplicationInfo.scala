@@ -84,6 +84,13 @@ private[spark] class ApplicationInfo(
     }
   }
 
+  /**
+    *
+    * @param worker  worker信息（标示是哪一个节点）
+    * @param cores   核心数
+    * @param useID   useID: Option[Int] = None 默认值为None
+    * @return  ExecutorDesc (val id: Int,  val application: ApplicationInfo,val worker: WorkerInfo,val cores: Int,val memory: Int)
+    */
   def addExecutor(worker: WorkerInfo, cores: Int, useID: Option[Int] = None): ExecutorDesc = {
     val exec = new ExecutorDesc(newExecutorId(useID), this, worker, cores, desc.memoryPerSlave)
     executors(exec.id) = exec

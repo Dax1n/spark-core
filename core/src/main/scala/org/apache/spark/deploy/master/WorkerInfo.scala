@@ -49,6 +49,9 @@ private[spark] class WorkerInfo(
   Utils.checkHost(host, "Expected hostname")
   assert (port > 0)
 
+  /**
+    *  var executors: mutable.HashMap[String, ExecutorDesc] = _  // executorId => info
+    */
   @transient var executors: mutable.HashMap[String, ExecutorDesc] = _ // executorId => info
   @transient var drivers: mutable.HashMap[String, DriverInfo] = _ // driverId => info
   @transient var state: WorkerState.Value = _
@@ -95,6 +98,11 @@ private[spark] class WorkerInfo(
     }
   }
 
+  /**
+    *
+    * @param app ：判断app是否已经有executor了？
+    * @return
+    */
   def hasExecutor(app: ApplicationInfo): Boolean = {
     executors.values.exists(_.application == app)
   }
