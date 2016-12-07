@@ -132,7 +132,8 @@ private[spark] class Executor(
   startDriverHeartbeater()
 
   /**
-    * Executor 启动Task
+    * Executor中启动Task任务
+    *
     * @param context
     * @param taskId
     * @param attemptNumber

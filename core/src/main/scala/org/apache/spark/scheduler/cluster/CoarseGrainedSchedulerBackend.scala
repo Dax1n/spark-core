@@ -83,6 +83,7 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
     * 客户端称为Driver的原因：因为类名字为：DriverActor
     * <br><br>
     * 负责 Driver和Worker的Executors通信
+    * <br>DriverActor负责提交task给Executor
     *
     * @param sparkProperties
     */
@@ -214,8 +215,11 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
     // Launch tasks returned by a set of resource offers
     def launchTasks(tasks: Seq[Seq[TaskDescription]]) {
       for (task <- tasks.flatten) {
+        //TODO 创建序列化器
         val ser = SparkEnv.get.closureSerializer.newInstance()
+
         val serializedTask = ser.serialize(task)
+
         if (serializedTask.limit >= akkaFrameSize - AkkaUtils.reservedSizeBytes) {
           val taskSetId = scheduler.taskIdToTaskSetId(task.taskId)
           scheduler.activeTaskSets.get(taskSetId).foreach { taskSet =>

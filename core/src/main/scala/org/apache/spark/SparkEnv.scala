@@ -332,8 +332,9 @@ object SparkEnv extends Logging {
       *
       * <br>Spark序列化器：
       * <br>1：KryoSerializer
-      * <br>2：JavaSerializer
+      * <br>2：JavaSerializer(默认实现)
       * 创建一个闭包序列化器
+      *  @return  KryoSerializer或JavaSerializer的class字节码
       */
     val closureSerializer = instantiateClassFromConf[Serializer]("spark.closure.serializer", "org.apache.spark.serializer.JavaSerializer")
 

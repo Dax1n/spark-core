@@ -84,6 +84,7 @@ object Serializer {
  */
 @DeveloperApi
 abstract class SerializerInstance {
+
   def serialize[T: ClassTag](t: T): ByteBuffer
 
   def deserialize[T: ClassTag](bytes: ByteBuffer): T

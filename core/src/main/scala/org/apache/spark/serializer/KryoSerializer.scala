@@ -156,7 +156,14 @@ private[spark] class KryoSerializerInstance(ks: KryoSerializer) extends Serializ
   private lazy val output = ks.newKryoOutput()
   private lazy val input = new KryoInput()
 
+  /**
+    * 序列化
+    * @param t
+    * @tparam T
+    * @return
+    */
   override def serialize[T: ClassTag](t: T): ByteBuffer = {
+
     output.clear()
     try {
       kryo.writeClassAndObject(output, t)
