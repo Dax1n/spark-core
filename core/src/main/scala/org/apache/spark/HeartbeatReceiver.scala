@@ -26,6 +26,7 @@ import org.apache.spark.util.ActorLogReceive
 /**
   * A heartbeat from executors to the driver. This is a shared message used by several internal
   * components to convey liveness or execution information for in-progress tasks.
+  * <br>executor发送给driverActor的心跳信息
   */
 private[spark] case class Heartbeat(
                                      executorId: String,

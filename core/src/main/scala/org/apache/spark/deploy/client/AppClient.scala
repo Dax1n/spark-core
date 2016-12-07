@@ -169,6 +169,7 @@ private[spark] class AppClient(
         val fullId = appId + "/" + id
         logInfo("Executor added: %s on %s (%s) with %d cores".format(fullId, workerId, hostPort, cores))
 
+        //通知master executor已经为RUNNING状态
         master ! ExecutorStateChanged(appId, id, ExecutorState.RUNNING, None, None)
 
         listener.executorAdded(fullId, workerId, hostPort, cores, memory)

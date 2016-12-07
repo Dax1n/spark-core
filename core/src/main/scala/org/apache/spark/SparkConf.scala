@@ -43,12 +43,33 @@ import org.apache.spark.util.Utils
   * by the user. Spark does not support modifying the configuration at runtime.
   *
   * @param loadDefaults whether to also load values from Java system properties
+  *
+  *                     <br><br><br>
+  *                     * 主构造器加载配置信息
+  *
+  *
+  *                     if (loadDefaults) {
+  *                     // Load any spark.* system properties
+  *                     for ((key, value) <- Utils.getSystemProperties if key.startsWith("spark.")) {
+  *                     set(key, value)
+  *                     }
+  *                     }
+  *
+  *                     *
+  *                     <br><br>76行左右
+  *                     代码大约
   */
+
 class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
 
   import SparkConf._
 
-  /** Create a SparkConf that loads defaults from system properties and the classpath */
+  /** Create a SparkConf that loads defaults from system properties and the classpath
+    *
+    *创建一个SparkConf，完成默认Spark系统的配置加载（在主构造器中完成初始化的）<br>
+    *
+    *
+    */
   def this() = this(true)
 
   /**
@@ -135,7 +156,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
 
   /**
     * Set the location where Spark is installed on worker nodes.
-    *  <br>设置SparkHome
+    * <br>设置SparkHome
     *
     */
   def setSparkHome(home: String): SparkConf = {
@@ -154,7 +175,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
 
   /** Set a parameter if it isn't already configured
     *
-    *<br>设置一个参数，如果这个参数之前没有设置的话，则设置。
+    * <br>设置一个参数，如果这个参数之前没有设置的话，则设置。
     * <br>设置过的话，则跳过
     *
     */
@@ -181,7 +202,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
 
   /** Remove a parameter from the configuration
     *
-    *<br>移除某个参数
+    * <br>移除某个参数
     */
   def remove(key: String): SparkConf = {
     settings.remove(key)

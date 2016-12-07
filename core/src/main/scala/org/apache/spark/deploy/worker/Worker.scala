@@ -111,12 +111,12 @@ private[spark] class Worker(
   var masterAddress: Address = null
   var activeMasterUrl: String = ""
   var activeMasterWebUiUrl: String = ""
-  val akkaUrl = AkkaUtils.address(
-    AkkaUtils.protocol(context.system),
-    actorSystemName,
-    host,
-    port,
-    actorName)
+  /**
+    *
+    *akkaUrl是worker的引用
+    *
+    */
+  val akkaUrl = AkkaUtils.address(AkkaUtils.protocol(context.system), actorSystemName, host, port, actorName)
   @volatile var registered = false
   @volatile var connected = false
   val workerId = generateWorkerId()
@@ -147,6 +147,9 @@ private[spark] class Worker(
     */
   val drivers = new HashMap[String, DriverRunner]
   val finishedDrivers = new HashMap[String, DriverRunner]
+  /**
+    * appId 和该app的所有executor临时目录的映射
+    */
   val appDirectories = new HashMap[String, Seq[String]]
   val finishedApps = new HashSet[String]
 
@@ -423,6 +426,7 @@ private[spark] class Worker(
     /**
       * Master 发送给worker的消息
       */
+      //TODO Master 发送给worker的消息,让worker启动executor 。LaunchExecutor包含executor的信息
     case LaunchExecutor(masterUrl, appId, execId, appDesc, cores_, memory_) =>
       if (masterUrl != activeMasterUrl) {
         logWarning("Invalid Master (" + masterUrl + ") attempted to launch executor.")
@@ -431,6 +435,7 @@ private[spark] class Worker(
           logInfo("Asked to launch executor %s/%d for %s".format(appId, execId, appDesc.name))
 
           // Create the executor's working directory
+          //TODO 例如：Shuffle临时数据需要存储的目录
           val executorDir = new File(workDir, appId + "/" + execId)
           if (!executorDir.mkdirs()) {
             throw new IOException("Failed to create directory " + executorDir)
@@ -439,12 +444,20 @@ private[spark] class Worker(
           // Create local dirs for the executor. These are passed to the executor via the
           // SPARK_LOCAL_DIRS environment variable, and deleted by the Worker when the
           // application finishes.
+          /**
+            * 创建一个本地文件夹为executor，然后使用SPARK_LOCAL_DIRS环境变量传递给executor<br>
+            *   然后当应用运行完毕之后，目录被Worker删除
+            */
           val appLocalDirs = appDirectories.get(appId).getOrElse {
             Utils.getOrCreateLocalRootDirs(conf).map { dir =>
               Utils.createDirectory(dir).getAbsolutePath()
             }.toSeq
           }
+
+          //存储本地的executor目录
           appDirectories(appId) = appLocalDirs
+
+          //TODO 创建一个ExecutorRunner，将参数封装其中，然后通过ExecutorRunner启动Executor
           val manager = new ExecutorRunner(
             appId,
             execId,
@@ -458,15 +471,21 @@ private[spark] class Worker(
             publicAddress,
             sparkHome,
             executorDir,
-            akkaUrl,
+            akkaUrl, //akkaUrl是worker的 url，这个url的用途是executor和worker通信
             conf, appLocalDirs, ExecutorState.LOADING)
 
-
+          //TODO 在该worker上注册该app的executor
           executors(appId + "/" + execId) = manager
+
+          //TODO 调用ExecutorRunner的start方法来启动executor 进程
           manager.start()
+
+
           coresUsed += cores_
           memoryUsed += memory_
+          //TODO 回复master
           master ! ExecutorStateChanged(appId, execId, manager.state, None, None)
+
         } catch {
           case e: Exception => {
             logError(s"Failed to launch executor $appId/$execId for ${appDesc.name}.", e)

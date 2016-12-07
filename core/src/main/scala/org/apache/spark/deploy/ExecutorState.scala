@@ -23,5 +23,12 @@ private[spark] object ExecutorState extends Enumeration {
 
   type ExecutorState = Value
 
+  /**
+    * def isFinished(state: ExecutorState): Boolean = Seq(KILLED, FAILED, LOST, EXITED).contains(state)
+    * <br><br>完成状态包括：KILLED, FAILED, LOST, EXITED<br>注意：这里是完成，不是成功！
+    *
+    * @param state
+    * @return
+    */
   def isFinished(state: ExecutorState): Boolean = Seq(KILLED, FAILED, LOST, EXITED).contains(state)
 }

@@ -462,8 +462,9 @@ private[spark] class Master(
         schedule()
       }
     }
-//TODO appClient发送来的消息，通知Executor状态已经为RUNNING了
+    //TODO appClient发送来的消息，通知Executor状态
     case ExecutorStateChanged(appId, execId, state, message, exitStatus) => {
+
       val execOption = idToApp.get(appId).flatMap(app => app.executors.get(execId))
       execOption match {
         case Some(exec) => {
@@ -472,21 +473,27 @@ private[spark] class Master(
           if (state == ExecutorState.RUNNING) {
             appInfo.resetRetryCount()
           }
+          // exec.application.driver = driverClient
           exec.application.driver ! ExecutorUpdated(execId, state, message, exitStatus)
+
+//          完成状态包括：KILLED, FAILED, LOST, EXITED 注意：这里是完成，不是成功！
           if (ExecutorState.isFinished(state)) {
             // Remove this executor from the worker and app
             logInfo(s"Removing executor ${exec.fullId} because it is $state")
-            appInfo.removeExecutor(exec)
-            exec.worker.removeExecutor(exec)
+            appInfo.removeExecutor(exec)//appInfo移除executor
+            exec.worker.removeExecutor(exec)//worker移除executor
 
-            val normalExit = exitStatus == Some(0)
+            val normalExit = exitStatus == Some(0) //判断是否正常推出
             // Only retry certain number of times so we don't go into an infinite loop.
             if (!normalExit) {
+              //异常退出
               if (appInfo.incrementRetryCount() < ApplicationState.MAX_NUM_RETRY) {
+                //当前重试次数是否小于最大重试次数MAX_NUM_RETRY10，如果小于重新调度
                 schedule()
               } else {
-                val execs = appInfo.executors.values
-                if (!execs.exists(_.state == ExecutorState.RUNNING)) {
+                //超过最大重启次数
+                val execs = appInfo.executors.values//获取当前app的所有executors
+                if (!execs.exists(_.state == ExecutorState.RUNNING)) {//如果不存在运行的executor的话，直接removeApplication
                   logError(s"Application ${appInfo.desc.name} with ID ${appInfo.id} failed " +
                     s"${appInfo.retryCount} times; removing it")
                   removeApplication(appInfo, ApplicationState.FAILED)
@@ -495,6 +502,7 @@ private[spark] class Master(
             }
           }
         }
+          //位置状态
         case None =>
           logWarning(s"Got status update for unknown executor $appId/$execId")
       }
@@ -690,7 +698,12 @@ private[spark] class Master(
     * <br>调度器：
     * <br>  调度当前等待的apps分配可获取的资源。
     * <br>  当每次有新的app加入或者有可获得资源这时候这个方法被调用
-    *<br><br> 两种调度方式（个人称之为）：1）多餐少食 2）暴饮暴食
+    * <br>两种调度方式（个人称之为）：1）多餐少食 2）暴饮暴食
+    * <br>
+    * <br>schedule()被调用的时机：
+    * <br>1）：当有新的worker（计算资源）加入或者下线时候，schedule()被调用
+    * <br>2）：添加app或者移除app，schedule()被调用
+    * <br>
     */
   private def schedule() {
 
@@ -738,7 +751,8 @@ private[spark] class Master(
       //尽可能的把每一个app作业分布在集群的所有节点上，在分配过程知道得到该有的Cpu核数为止
 
       //if app.coresLeft > 0 作用：应用需要的核数 没分配一次减少一次，只要还有核没分配的话，就再次循环分配
-      for (app <- waitingApps if app.coresLeft > 0) {//app在waitingApps
+      for (app <- waitingApps if app.coresLeft > 0) {
+        //app在waitingApps
 
         //过滤掉DEAD状态的Worker（因为Worker超时不立马移除掉，而是修改为Dead状态，之后重试连接如果还没有连接则移除）
         //过滤掉可以使用的worker（过滤掉条件：内存满足，而且没在改worker上启动executor），最后按照核心数排序
@@ -787,7 +801,7 @@ private[spark] class Master(
           if (assigned(pos) > 0) {
             //该usableWorkers(pos)分配出去了assigned(pos)个核心数
             val exec = app.addExecutor(usableWorkers(pos), assigned(pos))
-              //TODO Master发送消息给Worker去启动executor
+            //TODO Master发送消息给Worker去启动executor
             //启动worker上的executor
             launchExecutor(usableWorkers(pos), exec)
             //标记运行状态
@@ -819,13 +833,13 @@ private[spark] class Master(
 
   /**
     *
-    * @param worker  worker的节点信息（哪一个worker）
-    * @param exec ExecutorDesc包含信息
-    *             <br><br><br> id Executor的编号、application - 属于哪一个应用、worker - 属于哪一个Worker、cores - 核心数、memory - 内存
+    * @param worker worker的节点信息（哪一个worker）
+    * @param exec   ExecutorDesc包含信息
+    *               <br><br><br> id Executor的编号、application - 属于哪一个应用、worker - 属于哪一个Worker、cores - 核心数、memory - 内存
     */
   def launchExecutor(worker: WorkerInfo, exec: ExecutorDesc) {
     logInfo("Launching executor " + exec.fullId + " on worker " + worker.id)
-   //TODO 记录executor使用当前Worker的资源
+    //TODO 记录executor使用当前Worker的资源
     worker.addExecutor(exec)
 
     //worker.actor是worker的actor引用
@@ -950,6 +964,7 @@ private[spark] class Master(
 
   /**
     * 移除app
+    *
     * @param app
     * @param state
     */

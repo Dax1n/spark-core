@@ -45,9 +45,9 @@ import org.apache.spark.util.logging.FileAppender
   * @param appDesc
   * @param cores
   * @param memory
-  * @param worker
+  * @param worker ：ActorRef  worker的一个引用
   * @param workerId
-  * @param host
+  * @param host  worker的host，因为以后Driver需要和worker通信，worker和worker之间还需要通信（例如shuffle拉取数据）
   * @param webUiPort
   * @param publicAddress
   * @param sparkHome
@@ -86,12 +86,20 @@ private[spark] class ExecutorRunner(
   // make sense to remove this in the future.
   var shutdownHook: Thread = null
 
+  /**
+    *
+    *
+    */
   def start() {
+    //TODO 先创建一个线程对象，然后通过一个线程来启动一个java子进程
+    //创建线程的目的是为了不阻塞在此
     workerThread = new Thread("ExecutorRunner for " + fullId) {
       override def run() {
         fetchAndRunExecutor()
       }
     }
+
+    //启动线程
     workerThread.start()
     // Shutdown hook that kills actors on shutdown.
     shutdownHook = new Thread() {
@@ -150,12 +158,16 @@ private[spark] class ExecutorRunner(
 
   /**
     * Download and run the executor described in our ApplicationDescription
+    * <br>
+    * 下载并运行描述为ApplicationDescription的executor
+    *
     */
   def fetchAndRunExecutor() {
+    //TODO 子线程调用该方法启动java子进程
     try {
       // Launch the process
-      val builder = CommandUtils.buildProcessBuilder(appDesc.command, memory,
-        sparkHome.getAbsolutePath, substituteVariables)
+      //TODO 启动子进程
+      val builder = CommandUtils.buildProcessBuilder(appDesc.command, memory,sparkHome.getAbsolutePath, substituteVariables)
       val command = builder.command()
       logInfo("Launch command: " + command.mkString("\"", "\" \"", "\""))
 
@@ -171,9 +183,9 @@ private[spark] class ExecutorRunner(
       builder.environment.put("SPARK_LOG_URL_STDERR", s"${baseUrl}stderr")
       builder.environment.put("SPARK_LOG_URL_STDOUT", s"${baseUrl}stdout")
 
+      //TODO 真正启动java子进程 这个子进程就是：CoarseGrainedExecutorBackend，看CoarseGrainedExecutorBackend的main方法
       process = builder.start()
-      val header = "Spark Executor Command: %s\n%s\n\n".format(
-        command.mkString("\"", "\" \"", "\""), "=" * 40)
+      val header = "Spark Executor Command: %s\n%s\n\n".format(command.mkString("\"", "\" \"", "\""), "=" * 40)
 
       // Redirect its stdout and stderr to files
       val stdout = new File(executorDir, "stdout")
@@ -188,6 +200,8 @@ private[spark] class ExecutorRunner(
       val exitCode = process.waitFor()
       state = ExecutorState.EXITED
       val message = "Command exited with code " + exitCode
+
+      //给worker发送消息，告诉worker executor状态
       worker ! ExecutorStateChanged(appId, execId, state, Some(message), Some(exitCode))
     } catch {
       case interrupted: InterruptedException => {

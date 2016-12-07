@@ -108,12 +108,21 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
     }
 
     def receiveWithLogging = {
+      /**
+        *
+        * CoarseGrainedExecutorBackend给DriverActor发的消息
+        * <br>
+        *
+        */
+      //TODO CoarseGrainedExecutorBackend给DriverActor发的消息
       case RegisterExecutor(executorId, hostPort, cores, logUrls) =>
         Utils.checkHostPort(hostPort, "Host port expected " + hostPort)
         if (executorDataMap.contains(executorId)) {
+          //TODO sender为 CoarseGrainedExecutorBackend的 actor
           sender ! RegisterExecutorFailed("Duplicate executor ID: " + executorId)
         } else {
           logInfo("Registered executor: " + sender + " with ID " + executorId)
+          //TODO sender为 CoarseGrainedExecutorBackend的 actor
           sender ! RegisteredExecutor
 
           addressToExecutorId(sender.path.address) = executorId
@@ -132,6 +141,8 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
           }
           listenerBus.post(
             SparkListenerExecutorAdded(System.currentTimeMillis(), executorId, data))
+
+        //TODO 重点： 查看是否有任务需要提交？！ （DriverActor提交任务给Executor）
           makeOffers()
         }
 
@@ -184,7 +195,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
         sender ! sparkProperties
     }
 
-    // Make fake resource offers on all executors
+    /**
+      * Make fake resource offers on all executors
+      */
     def makeOffers() {
       launchTasks(scheduler.resourceOffers(executorDataMap.map { case (id, executorData) =>
         new WorkerOffer(id, executorData.executorHost, executorData.freeCores)

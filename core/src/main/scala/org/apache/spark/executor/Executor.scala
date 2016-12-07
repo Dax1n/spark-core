@@ -35,20 +35,25 @@ import org.apache.spark.scheduler._
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.{StorageLevel, TaskResultBlockId}
 import org.apache.spark.util.{ChildFirstURLClassLoader, MutableURLClassLoader,
-  SparkUncaughtExceptionHandler, AkkaUtils, Utils}
+SparkUncaughtExceptionHandler, AkkaUtils, Utils}
 
 /**
- * Spark executor used with Mesos, YARN, and the standalone scheduler.
- * In coarse-grained mode, an existing actor system is provided.
- */
+  * Spark executor used with Mesos, YARN, and the standalone scheduler.
+  * In coarse-grained mode, an existing actor system is provided.
+  * <br><br>译文<br>
+  * Executor可以备用在Mesos, YARN, 和 standalone 调度器上，<br>
+  * 在粗粒度的模式下，有现存的actor system
+  *
+  * <br><br>Executor运行在CoarseGrainedExecutorBackend中
+  * <br><br>在主构造器中完成线程池创建
+  *
+  */
 private[spark] class Executor(
-    executorId: String,
-    executorHostname: String,
-    env: SparkEnv,
-    userClassPath: Seq[URL] = Nil,
-    isLocal: Boolean = false)
-  extends Logging
-{
+                               executorId: String,
+                               executorHostname: String,
+                               env: SparkEnv,
+                               userClassPath: Seq[URL] = Nil,
+                               isLocal: Boolean = false) extends Logging {
 
   logInfo(s"Starting executor ID $executorId on host $executorHostname")
 
@@ -66,7 +71,7 @@ private[spark] class Executor(
   // No ip or host:port - just hostname
   Utils.checkHost(executorHostname, "Expected executed slave to be a hostname")
   // must not have port specified.
-  assert (0 == Utils.parseHostPort(executorHostname)._2)
+  assert(0 == Utils.parseHostPort(executorHostname)._2)
 
   // Make sure the local hostname we report matches the cluster scheduler's name for this host
   Utils.setCustomHostname(executorHostname)
@@ -79,6 +84,10 @@ private[spark] class Executor(
   }
 
   // Start worker thread pool
+  /**
+    * 创建worker线程池，threadPool为Executor的线程池，以后执行task
+    */
+//  TODO 创建worker线程池
   val threadPool = Utils.newDaemonCachedThreadPool("Executor task launch worker")
 
   val executorSource = new ExecutorSource(this, executorId)
@@ -114,19 +123,28 @@ private[spark] class Executor(
   private val maxResultSize = Utils.getMaxResultSize(conf)
 
   // Maintains the list of running tasks.
+  /**
+    * Maintains the list of running tasks.<br>保存正在运行的task
+    */
   private val runningTasks = new ConcurrentHashMap[Long, TaskRunner]
 
+  //TODO Executor向DriverActor发送信条
   startDriverHeartbeater()
 
-  def launchTask(
-      context: ExecutorBackend,
-      taskId: Long,
-      attemptNumber: Int,
-      taskName: String,
-      serializedTask: ByteBuffer) {
-    val tr = new TaskRunner(context, taskId = taskId, attemptNumber = attemptNumber, taskName,
-      serializedTask)
+  /**
+    * Executor 启动Task
+    * @param context
+    * @param taskId
+    * @param attemptNumber
+    * @param taskName
+    * @param serializedTask
+    */
+  def launchTask(context: ExecutorBackend, taskId: Long, attemptNumber: Int, taskName: String, serializedTask: ByteBuffer) {
+
+    val tr = new TaskRunner(context, taskId = taskId, attemptNumber = attemptNumber, taskName, serializedTask)
+
     runningTasks.put(taskId, tr)
+    //提交给线程池运行
     threadPool.execute(tr)
   }
 
@@ -149,13 +167,19 @@ private[spark] class Executor(
 
   private def gcTime = ManagementFactory.getGarbageCollectorMXBeans.map(_.getCollectionTime).sum
 
-  class TaskRunner(
-      execBackend: ExecutorBackend,
-      val taskId: Long,
-      val attemptNumber: Int,
-      taskName: String,
-      serializedTask: ByteBuffer)
-    extends Runnable {
+  /**
+    *
+    * <br>
+    * TaskRunnerextends Runnable
+    * <br>实现了Runnable接口，以后提交给线程池运行。（Task运行器）
+    * <br>
+    * @param execBackend
+    * @param taskId
+    * @param attemptNumber
+    * @param taskName
+    * @param serializedTask
+    */
+  class TaskRunner(execBackend: ExecutorBackend, val taskId: Long, val attemptNumber: Int, taskName: String, serializedTask: ByteBuffer) extends Runnable {
 
     @volatile private var killed = false
     @volatile var task: Task[Any] = _
@@ -298,9 +322,9 @@ private[spark] class Executor(
   }
 
   /**
-   * Create a ClassLoader for use in tasks, adding any JARs specified by the user or any classes
-   * created by the interpreter to the search path
-   */
+    * Create a ClassLoader for use in tasks, adding any JARs specified by the user or any classes
+    * created by the interpreter to the search path
+    */
   private def createClassLoader(): MutableURLClassLoader = {
     // Bootstrap the list of jars with the user class path.
     val now = System.currentTimeMillis()
@@ -323,9 +347,9 @@ private[spark] class Executor(
   }
 
   /**
-   * If the REPL is in use, add another ClassLoader that will read
-   * new classes defined by the REPL as the user types code
-   */
+    * If the REPL is in use, add another ClassLoader that will read
+    * new classes defined by the REPL as the user types code
+    */
   private def addReplClassLoaderIfNeeded(parent: ClassLoader): ClassLoader = {
     val classUri = conf.get("spark.repl.class.uri", null)
     if (classUri != null) {
@@ -349,9 +373,9 @@ private[spark] class Executor(
   }
 
   /**
-   * Download any missing dependencies if we receive a new set of files and JARs from the
-   * SparkContext. Also adds any new JARs we fetched to the class loader.
-   */
+    * Download any missing dependencies if we receive a new set of files and JARs from the
+    * SparkContext. Also adds any new JARs we fetched to the class loader.
+    */
   private def updateDependencies(newFiles: HashMap[String, Long], newJars: HashMap[String, Long]) {
     lazy val hadoopConf = SparkHadoopUtil.get.newConfiguration(conf)
     synchronized {
