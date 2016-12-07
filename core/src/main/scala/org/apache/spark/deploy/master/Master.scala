@@ -88,7 +88,7 @@ private[spark] class Master(
   /**
     * <br> class WorkerInfo( val id: String, val host: String, val port: Int,val cores: Int,  val memory: Int,val actor: ActorRef, val webUiPort: Int,val publicAddress: String)
     * <br>
-    * <br>
+    * <br>Master存储的所有worker信息
     *
     */
   val workers = new HashSet[WorkerInfo]
@@ -730,12 +730,13 @@ private[spark] class Master(
     //上面代码是兼容老的，下面代码是新的
     // Right now this is a very simple FIFO scheduler. We keep trying to fit in the first app
     // in the queue, then the second app, etc.
+    //多餐少食的原理
     if (spreadOutApps) {
       // Try to spread out each app among all the nodes, until it has all its cores
       //尽可能的把每一个app作业分布在集群的所有节点上，在分配过程知道得到该有的Cpu核数为止
 
       //if app.coresLeft > 0 作用：应用需要的核数 没分配一次减少一次，只要还有核没分配的话，就再次循环分配
-      for (app <- waitingApps if app.coresLeft > 0) {
+      for (app <- waitingApps if app.coresLeft > 0) {//app在waitingApps
 
         //过滤掉DEAD状态的Worker（因为Worker超时不立马移除掉，而是修改为Dead状态，之后重试连接如果还没有连接则移除）
         //过滤掉可以使用的worker（过滤掉条件：内存满足，而且没在改worker上启动executor），最后按照核心数排序
@@ -796,10 +797,11 @@ private[spark] class Master(
       // Pack each app into as few nodes as possible until we've assigned all its cores
       //尽可能集中在一些节点上
 
-      //
+      //集中式分配资源，有点饿汉式感觉，现有多少吃多少
       for (worker <- workers if worker.coresFree > 0 && worker.state == WorkerState.ALIVE) {
-        //
+        //一般应用再完成或者故障失败才在waitingApps移除，所以没完成之前一直在waitingApps中
         for (app <- waitingApps if app.coresLeft > 0) {
+          //此循环一直运行，直到app失败或者完成 或者app.coresLeft <=0时候停止循环
           if (canUse(app, worker)) {
             val coresToUse = math.min(worker.coresFree, app.coresLeft)
             if (coresToUse > 0) {
@@ -822,8 +824,11 @@ private[spark] class Master(
   def launchExecutor(worker: WorkerInfo, exec: ExecutorDesc) {
     logInfo("Launching executor " + exec.fullId + " on worker " + worker.id)
     worker.addExecutor(exec)
-    //
+
+    //给worker发消息
     worker.actor ! LaunchExecutor(masterUrl, exec.application.id, exec.id, exec.application.desc, exec.cores, exec.memory)
+
+    //给driver反馈消息，说executor启动完毕（准确来说是给clientActor发消息）
     exec.application.driver ! ExecutorAdded(exec.id, worker.id, worker.hostPort, exec.cores, exec.memory)
   }
 
@@ -937,6 +942,11 @@ private[spark] class Master(
     removeApplication(app, ApplicationState.FINISHED)
   }
 
+  /**
+    * 移除app
+    * @param app
+    * @param state
+    */
   def removeApplication(app: ApplicationInfo, state: ApplicationState.Value) {
     if (apps.contains(app)) {
       logInfo("Removing app " + app.id)

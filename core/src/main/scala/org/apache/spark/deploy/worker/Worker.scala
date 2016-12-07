@@ -130,6 +130,9 @@ private[spark] class Worker(
   var workDir: File = null
   /**
     * val executors = new HashMap[String, ExecutorRunner]
+    *
+    * 一个map存储映射，key= appId + "/" + execId ,value = ExecutorRunner
+    *
     */
   val executors = new HashMap[String, ExecutorRunner]
   /**
@@ -417,6 +420,9 @@ private[spark] class Worker(
       logInfo(s"Master with url $masterUrl requested this worker to reconnect.")
       registerWithMaster()
 
+    /**
+      * Master 发送给worker的消息
+      */
     case LaunchExecutor(masterUrl, appId, execId, appDesc, cores_, memory_) =>
       if (masterUrl != activeMasterUrl) {
         logWarning("Invalid Master (" + masterUrl + ") attempted to launch executor.")
@@ -453,8 +459,9 @@ private[spark] class Worker(
             sparkHome,
             executorDir,
             akkaUrl,
-            conf,
-            appLocalDirs, ExecutorState.LOADING)
+            conf, appLocalDirs, ExecutorState.LOADING)
+
+
           executors(appId + "/" + execId) = manager
           manager.start()
           coresUsed += cores_

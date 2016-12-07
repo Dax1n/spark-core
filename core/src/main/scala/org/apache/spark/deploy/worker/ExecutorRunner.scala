@@ -31,26 +31,49 @@ import org.apache.spark.deploy.DeployMessages.ExecutorStateChanged
 import org.apache.spark.util.logging.FileAppender
 
 /**
- * Manages the execution of one executor process.
- * This is currently only used in standalone mode.
- */
+  * Manages the execution of one executor process.
+  * This is currently only used in standalone mode.
+  */
+
+/**
+  * <br>管理executor的进程，目前只能用在standalone模式。
+  * <br>Manages the execution of one executor process.
+  * <br>This is currently only used in standalone mode.
+  *
+  * @param appId
+  * @param execId
+  * @param appDesc
+  * @param cores
+  * @param memory
+  * @param worker
+  * @param workerId
+  * @param host
+  * @param webUiPort
+  * @param publicAddress
+  * @param sparkHome
+  * @param executorDir
+  * @param workerUrl
+  * @param conf
+  * @param appLocalDirs
+  * @param state
+  */
 private[spark] class ExecutorRunner(
-    val appId: String,
-    val execId: Int,
-    val appDesc: ApplicationDescription,
-    val cores: Int,
-    val memory: Int,
-    val worker: ActorRef,
-    val workerId: String,
-    val host: String,
-    val webUiPort: Int,
-    val publicAddress: String,
-    val sparkHome: File,
-    val executorDir: File,
-    val workerUrl: String,
-    val conf: SparkConf,
-    val appLocalDirs: Seq[String],
-    var state: ExecutorState.Value)
+                                     val appId: String,
+                                     val execId: Int,
+                                     val appDesc: ApplicationDescription,
+                                     val cores: Int,
+                                     val memory: Int,
+                                     val worker: ActorRef,
+                                     val workerId: String,
+                                     val host: String,
+                                     val webUiPort: Int,
+                                     val publicAddress: String,
+                                     val sparkHome: File,
+                                     val executorDir: File,
+                                     val workerUrl: String,
+                                     val conf: SparkConf,
+                                     val appLocalDirs: Seq[String],
+                                     var state: ExecutorState.Value)
   extends Logging {
 
   val fullId = appId + "/" + execId
@@ -65,7 +88,9 @@ private[spark] class ExecutorRunner(
 
   def start() {
     workerThread = new Thread("ExecutorRunner for " + fullId) {
-      override def run() { fetchAndRunExecutor() }
+      override def run() {
+        fetchAndRunExecutor()
+      }
     }
     workerThread.start()
     // Shutdown hook that kills actors on shutdown.
@@ -78,10 +103,10 @@ private[spark] class ExecutorRunner(
   }
 
   /**
-   * Kill executor process, wait for exit and notify worker to update resource status.
-   *
-   * @param message the exception message which caused the executor's death
-   */
+    * Kill executor process, wait for exit and notify worker to update resource status.
+    *
+    * @param message the exception message which caused the executor's death
+    */
   private def killProcess(message: Option[String]) {
     var exitCode: Option[Int] = None
     if (process != null) {
@@ -124,8 +149,8 @@ private[spark] class ExecutorRunner(
   }
 
   /**
-   * Download and run the executor described in our ApplicationDescription
-   */
+    * Download and run the executor described in our ApplicationDescription
+    */
   def fetchAndRunExecutor() {
     try {
       // Launch the process
@@ -142,7 +167,7 @@ private[spark] class ExecutorRunner(
 
       // Add webUI log urls
       val baseUrl =
-        s"http://$publicAddress:$webUiPort/logPage/?appId=$appId&executorId=$execId&logType="
+      s"http://$publicAddress:$webUiPort/logPage/?appId=$appId&executorId=$execId&logType="
       builder.environment.put("SPARK_LOG_URL_STDERR", s"${baseUrl}stderr")
       builder.environment.put("SPARK_LOG_URL_STDOUT", s"${baseUrl}stdout")
 

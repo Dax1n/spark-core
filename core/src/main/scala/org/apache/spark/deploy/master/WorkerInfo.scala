@@ -50,7 +50,8 @@ private[spark] class WorkerInfo(
   assert (port > 0)
 
   /**
-    *  var executors: mutable.HashMap[String, ExecutorDesc] = _  // executorId => info
+    *  var executors: mutable.HashMap[String, ExecutorDesc] = _  <br>
+    *     executorId 和ExecutorDesc的映射
     */
   @transient var executors: mutable.HashMap[String, ExecutorDesc] = _ // executorId => info
   @transient var drivers: mutable.HashMap[String, DriverInfo] = _ // driverId => info
@@ -62,7 +63,16 @@ private[spark] class WorkerInfo(
 
   init()
 
+  /**
+    * 这是一个方法，求剩余的CPU核心数
+    * @return  剩余的CPU核心数
+    */
   def coresFree: Int = cores - coresUsed
+
+  /**
+    * 这是一个方法，求剩余的内存数
+    * @return  剩余的内存数
+    */
   def memoryFree: Int = memory - memoryUsed
 
   private def readObject(in: java.io.ObjectInputStream): Unit = Utils.tryOrIOException {
@@ -84,12 +94,22 @@ private[spark] class WorkerInfo(
     host + ":" + port
   }
 
+  /**
+    * 把当前的Executor（ExecutorDesc描述的executor）添加到当前worker的executor记录表中
+    * <br>修改当前worker的使用资源<br>1： coresUsed += exec.cores <br>2：memoryUsed += exec.memory
+    * @param exec
+    */
   def addExecutor(exec: ExecutorDesc) {
     executors(exec.fullId) = exec
     coresUsed += exec.cores
     memoryUsed += exec.memory
   }
 
+  /**
+    *把当前的Executor（ExecutorDesc描述的executor）从当前worker的executor记录表中移除
+    * <br>修改当前worker的使用资源<br>1： coresUsed -= exec.cores <br>2：memoryUsed -= exec.memory
+    * @param exec
+    */
   def removeExecutor(exec: ExecutorDesc) {
     if (executors.contains(exec.fullId)) {
       executors -= exec.fullId
@@ -100,7 +120,7 @@ private[spark] class WorkerInfo(
 
   /**
     *
-    * @param app ：判断app是否已经有executor了？
+    * @param app ：判断app在该worker节点上是否已经启动executor了？
     * @return
     */
   def hasExecutor(app: ApplicationInfo): Boolean = {

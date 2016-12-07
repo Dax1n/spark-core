@@ -150,6 +150,9 @@ private[spark] class AppClient(
         markDead("Master removed our application: %s".format(message))
         context.stop(self)
 
+      /**
+        * Master给client发的消息，说executor启动完毕
+        */
       case ExecutorAdded(id: Int, workerId: String, hostPort: String, cores: Int, memory: Int) =>
         val fullId = appId + "/" + id
         logInfo("Executor added: %s on %s (%s) with %d cores".format(fullId, workerId, hostPort,
