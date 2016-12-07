@@ -82,10 +82,12 @@ private[spark] class AppClient(
       * SparkSubmit端的ClientActor负责与Master通信，在preStart中完成向Master的注册
       */
     override def preStart() {
+      //TODO ClientActor的生命周期方法
       context.system.eventStream.subscribe(self, classOf[RemotingLifecycleEvent])
       try {
         //SparkSubmit端的ClientActor负责与Master通信，完成向Master的注册
         registerWithMaster()
+        //TODO ClientActor向Master注册
       } catch {
         case e: Exception =>
           logWarning("Failed to connect to master", e)
@@ -98,15 +100,22 @@ private[spark] class AppClient(
       * appClient负责向master注册应用
       */
     def tryRegisterAllMasters() {
+      //TODO 循环Master地址
       for (masterAkkaUrl <- masterAkkaUrls) {
         logInfo("Connecting to master " + masterAkkaUrl + "...")
+        //TODO 根据Master地址拿到Master引用，跟Master建立连接
         val actor = context.actorSelection(masterAkkaUrl)
         //appClient负责向master注册应用
         actor ! RegisterApplication(appDescription)
+        //TODO 拿到了Master的一个引用，然后向Master发送注册应用的请求，所有的参数都封装到appDescription
       }
     }
 
+    /**
+      *
+      */
     def registerWithMaster() {
+      //TODO 向Master注册
       tryRegisterAllMasters()
       import context.dispatcher
       var retries = 0
@@ -117,6 +126,7 @@ private[spark] class AppClient(
             if (registered) {
               registrationRetryTimer.foreach(_.cancel())
             } else if (retries >= REGISTRATION_RETRIES) {
+              //向master注册，超过三次放弃
               markDead("All masters are unresponsive! Giving up.")
             } else {
               tryRegisterAllMasters()
@@ -138,6 +148,7 @@ private[spark] class AppClient(
       masterAkkaUrls.map(AddressFromURIString(_).hostPort).contains(remoteUrl.hostPort)
     }
 
+    //TODO Master发送给ClientActor注册成功的消息
     override def receiveWithLogging = {
       //Master回复的信息，通知appClient注册成功
       case RegisteredApplication(appId_, masterUrl) =>
@@ -146,18 +157,20 @@ private[spark] class AppClient(
         changeMaster(masterUrl)
         listener.connected(appId)
 
-      case ApplicationRemoved(message) =>
+          case ApplicationRemoved(message) =>
         markDead("Master removed our application: %s".format(message))
         context.stop(self)
 
       /**
         * Master给client发的消息，说executor启动完毕
         */
+      //TODO  Master发送给ClientActor的消息，告诉ClientActor, Master已经向Worker启动了Executor的消息
       case ExecutorAdded(id: Int, workerId: String, hostPort: String, cores: Int, memory: Int) =>
         val fullId = appId + "/" + id
-        logInfo("Executor added: %s on %s (%s) with %d cores".format(fullId, workerId, hostPort,
-          cores))
+        logInfo("Executor added: %s on %s (%s) with %d cores".format(fullId, workerId, hostPort, cores))
+
         master ! ExecutorStateChanged(appId, id, ExecutorState.RUNNING, None, None)
+
         listener.executorAdded(fullId, workerId, hostPort, cores, memory)
 
       case ExecutorUpdated(id, state, message, exitStatus) =>
@@ -215,6 +228,7 @@ private[spark] class AppClient(
     *
     *
     */
+  //TODO 创建ClientActor调用主构造器 ->preStart -> receive
   def start() {
     // Just launch an actor; it will call back into the listener.
     actor = actorSystem.actorOf(Props(new ClientActor))

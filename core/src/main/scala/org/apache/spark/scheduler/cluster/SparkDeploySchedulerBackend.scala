@@ -59,9 +59,11 @@ private[spark] class SparkDeploySchedulerBackend(
     *
     */
   override def start() {
+    //TODO 首先调用父类的start方法来创建DriverActor
     super.start()
 
     // The endpoint for executors to talk to us
+    //TODO 准备一些参数，以后把这些参数封装到一个对象中，然后将该对象发送给Master
     val driverUrl = AkkaUtils.address(
       AkkaUtils.protocol(actorSystem),
       SparkEnv.driverActorSystemName,
@@ -102,15 +104,18 @@ private[spark] class SparkDeploySchedulerBackend(
       * <br>在standalone模式下 执行作业的worker的executor线程名字为：CoarseGrainedExecutorBackend
       * <br>
       */
+    //TODO 重要：这个参数是以后Executor的实现类
     val command = Command("org.apache.spark.executor.CoarseGrainedExecutorBackend", args, sc.executorEnvs, classPathEntries ++ testingClassPath, libraryPathEntries, javaOpts)
     val appUIAddress = sc.ui.map(_.appUIAddress).getOrElse("")
+    //TODO 把参数封装到ApplicationDescription
     val appDesc = new ApplicationDescription(sc.appName, maxCores, sc.executorMemory, command, appUIAddress, sc.eventLogDir, sc.eventLogCodec)
-
+    //TODO 创建一个AppClient把ApplicationDescription通过主构造器传进去
     client = new AppClient(sc.env.actorSystem, masters, appDesc, this, conf)
 
     /**
       * 完成ClientActor的创建
       */
+    //TODO 然后调用AppClient的start方法，在start方法中创建了一个ClientActor用于与Master通信
     client.start()
 
     waitForRegistration()

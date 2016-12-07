@@ -449,6 +449,7 @@ private[spark] class Master(
         // ignore, don't send response
       } else {
         logInfo("Registering app " + description.name)
+        //TODO 把应用信息存到内存, 重点：sender应该是clientActor
         val app = createApplication(description, sender) //sender应该是clientActor
 
         registerApplication(app)
@@ -457,10 +458,11 @@ private[spark] class Master(
         persistenceEngine.addApplication(app)
         //回复appClient已经注册（这一块不是worker）
         sender ! RegisteredApplication(app.id, masterUrl)
+        //TODO Master开始调度资源，其实就是把任务启动启动到哪些Worker上
         schedule()
       }
     }
-
+//TODO appClient发送来的消息，通知Executor状态已经为RUNNING了
     case ExecutorStateChanged(appId, execId, state, message, exitStatus) => {
       val execOption = idToApp.get(appId).flatMap(app => app.executors.get(execId))
       execOption match {
@@ -688,7 +690,7 @@ private[spark] class Master(
     * <br>调度器：
     * <br>  调度当前等待的apps分配可获取的资源。
     * <br>  当每次有新的app加入或者有可获得资源这时候这个方法被调用
-    *
+    *<br><br> 两种调度方式（个人称之为）：1）多餐少食 2）暴饮暴食
     */
   private def schedule() {
 
@@ -785,7 +787,7 @@ private[spark] class Master(
           if (assigned(pos) > 0) {
             //该usableWorkers(pos)分配出去了assigned(pos)个核心数
             val exec = app.addExecutor(usableWorkers(pos), assigned(pos))
-
+              //TODO Master发送消息给Worker去启动executor
             //启动worker上的executor
             launchExecutor(usableWorkers(pos), exec)
             //标记运行状态
@@ -797,7 +799,7 @@ private[spark] class Master(
       // Pack each app into as few nodes as possible until we've assigned all its cores
       //尽可能集中在一些节点上
 
-      //集中式分配资源，有点饿汉式感觉，现有多少吃多少
+      //集中式分配资源，有点饿汉式感觉，现有多少吃多少(暴饮暴食)
       for (worker <- workers if worker.coresFree > 0 && worker.state == WorkerState.ALIVE) {
         //一般应用再完成或者故障失败才在waitingApps移除，所以没完成之前一直在waitingApps中
         for (app <- waitingApps if app.coresLeft > 0) {
@@ -823,12 +825,15 @@ private[spark] class Master(
     */
   def launchExecutor(worker: WorkerInfo, exec: ExecutorDesc) {
     logInfo("Launching executor " + exec.fullId + " on worker " + worker.id)
+   //TODO 记录executor使用当前Worker的资源
     worker.addExecutor(exec)
 
-    //给worker发消息
+    //worker.actor是worker的actor引用
+    //TODO master 给worker发送消息让其启动Executor
     worker.actor ! LaunchExecutor(masterUrl, exec.application.id, exec.id, exec.application.desc, exec.cores, exec.memory)
 
     //给driver反馈消息，说executor启动完毕（准确来说是给clientActor发消息）
+    //TODO  master向clientActor（注意不是driverActor，clientActor与driverActor都运行在sparksubmit中）发送消息，通知executor启动完毕
     exec.application.driver ! ExecutorAdded(exec.id, worker.id, worker.hostPort, exec.cores, exec.memory)
   }
 
@@ -909,6 +914,7 @@ private[spark] class Master(
   def createApplication(desc: ApplicationDescription, driver: ActorRef): ApplicationInfo = {
     val now = System.currentTimeMillis()
     val date = new Date(now)
+    //TODO driver是clientActor
     new ApplicationInfo(now, newApplicationId(date), desc, date, driver, defaultCores)
   }
 

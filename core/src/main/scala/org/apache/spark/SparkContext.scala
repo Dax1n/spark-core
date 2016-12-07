@@ -85,10 +85,25 @@ import org.apache.spark.util._
 //主构造器主要完成的事情：1） 创建SparkEnv 2）创建TaskScheduler 3）创建DAGScheduler 4）启动TaskScheduler
 class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationClient {
 
-  // The call site where this SparkContext was constructed.
+
+  /**
+    * 很重要：SparkContext是Spark提交任务到集群的入口
+    * 我们看一下SparkContext的主构造器
+    * 1.调用createSparkEnv方法创建SparkEnv，里面有一个非常重要的对象ActorSystem
+    * 2.创建TaskScheduler -> 根据提交任务的URL进行匹配 -> TaskSchedulerImpl -> SparkDeploySchedulerBackend(里面有两个Actor)
+    * 3.创建DAGScheduler
+    * 4.taskScheduler.start()
+    */
+
+
+  /**
+    *  The call site where this SparkContext was constructed.
+    */
   private val creationSite: CallSite = Utils.getCallSite()
 
-  // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
+  /**
+    * If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
+    */
   private val allowMultipleContexts: Boolean =
   config.getBoolean("spark.driver.allowMultipleContexts", false)
 
