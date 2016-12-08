@@ -92,9 +92,19 @@ private[spark] class TaskSchedulerImpl(
 
   // TaskSetManagers are not thread safe, so any access to one should be synchronized
   // on this class.
+  /**
+    * TaskSetManagers不是线程安全的，因此访问它必须使用synchronized
+    * <br>
+    *taskSetId -> TaskSetManager 映射
+    */
   val activeTaskSets = new HashMap[String, TaskSetManager]
 
+  /**
+    *   val taskIdToTaskSetId = new HashMap[Long, String]<br>
+    *     taskId->taskSetId映射
+    */
   val taskIdToTaskSetId = new HashMap[Long, String]
+
   val taskIdToExecutorId = new HashMap[Long, String]
 
   @volatile private var hasReceivedTask = false

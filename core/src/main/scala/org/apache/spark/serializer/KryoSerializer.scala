@@ -152,12 +152,17 @@ class KryoDeserializationStream(kryo: Kryo, inStream: InputStream) extends Deser
 private[spark] class KryoSerializerInstance(ks: KryoSerializer) extends SerializerInstance {
   private val kryo = ks.newKryo()
 
-  // Make these lazy vals to avoid creating a buffer unless we use them
+
+  /**
+    * Make these lazy vals to avoid creating a buffer unless we use them<br>
+    *   确保我们使用的时候在加载（延迟加载）
+    *
+    */
   private lazy val output = ks.newKryoOutput()
   private lazy val input = new KryoInput()
 
   /**
-    * 序列化
+    * 序列化 serialize
     * @param t
     * @tparam T
     * @return
@@ -172,6 +177,8 @@ private[spark] class KryoSerializerInstance(ks: KryoSerializer) extends Serializ
         throw new SparkException(s"Kryo serialization failed: ${e.getMessage}. To avoid this, " +
           "increase spark.kryoserializer.buffer.max.mb value.")
     }
+    //Java Api public static ByteBuffer wrap(byte[] array)
+    // 将 byte 数组包装到缓冲区中。
     ByteBuffer.wrap(output.toBytes)
   }
 

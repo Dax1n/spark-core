@@ -31,26 +31,26 @@ import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{Logging, SecurityManager, SparkConf, SparkEnv, SparkException}
 
 /**
- * Various utility classes for working with Akka.
- */
+  * Various utility classes for working with Akka.
+  */
 private[spark] object AkkaUtils extends Logging {
 
   /**
-   * Creates an ActorSystem ready for remoting, with various Spark features. Returns both the
-   * ActorSystem itself and its port (which is hard to get from Akka).
-   *
-   * Note: the `name` parameter is important, as even if a client sends a message to right
-   * host + port, if the system name is incorrect, Akka will drop the message.
-   *
-   * If indestructible is set to true, the Actor System will continue running in the event
-   * of a fatal exception. This is used by [[org.apache.spark.executor.Executor]].
-   */
+    * Creates an ActorSystem ready for remoting, with various Spark features. Returns both the
+    * ActorSystem itself and its port (which is hard to get from Akka).
+    *
+    * Note: the `name` parameter is important, as even if a client sends a message to right
+    * host + port, if the system name is incorrect, Akka will drop the message.
+    *
+    * If indestructible is set to true, the Actor System will continue running in the event
+    * of a fatal exception. This is used by [[org.apache.spark.executor.Executor]].
+    */
   def createActorSystem(
-      name: String,
-      host: String,
-      port: Int,
-      conf: SparkConf,
-      securityManager: SecurityManager): (ActorSystem, Int) = {
+                         name: String,
+                         host: String,
+                         port: Int,
+                         conf: SparkConf,
+                         securityManager: SecurityManager): (ActorSystem, Int) = {
     val startService: Int => (ActorSystem, Int) = { actualPort =>
       doCreateActorSystem(name, host, actualPort, conf, securityManager)
     }
@@ -58,13 +58,13 @@ private[spark] object AkkaUtils extends Logging {
   }
 
   private def doCreateActorSystem(
-      name: String,
-      host: String,
-      port: Int,
-      conf: SparkConf,
-      securityManager: SecurityManager): (ActorSystem, Int) = {
+                                   name: String,
+                                   host: String,
+                                   port: Int,
+                                   conf: SparkConf,
+                                   securityManager: SecurityManager): (ActorSystem, Int) = {
 
-    val akkaThreads   = conf.getInt("spark.akka.threads", 4)
+    val akkaThreads = conf.getInt("spark.akka.threads", 4)
     val akkaBatchSize = conf.getInt("spark.akka.batchSize", 15)
     val akkaTimeout = conf.getInt("spark.akka.timeout", conf.getInt("spark.network.timeout", 120))
     val akkaFrameSize = maxFrameSizeBytes(conf)
@@ -91,32 +91,32 @@ private[spark] object AkkaUtils extends Logging {
     logDebug(s"In createActorSystem, requireCookie is: $requireCookie")
 
     val akkaSslConfig = securityManager.akkaSSLOptions.createAkkaConfig
-        .getOrElse(ConfigFactory.empty())
+      .getOrElse(ConfigFactory.empty())
 
     val akkaConf = ConfigFactory.parseMap(conf.getAkkaConf.toMap[String, String])
       .withFallback(akkaSslConfig).withFallback(ConfigFactory.parseString(
       s"""
-      |akka.daemonic = on
-      |akka.loggers = [""akka.event.slf4j.Slf4jLogger""]
-      |akka.stdout-loglevel = "ERROR"
-      |akka.jvm-exit-on-fatal-error = off
-      |akka.remote.require-cookie = "$requireCookie"
-      |akka.remote.secure-cookie = "$secureCookie"
-      |akka.remote.transport-failure-detector.heartbeat-interval = $akkaHeartBeatInterval s
-      |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $akkaHeartBeatPauses s
-      |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
-      |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
-      |akka.remote.netty.tcp.hostname = "$host"
-      |akka.remote.netty.tcp.port = $port
-      |akka.remote.netty.tcp.tcp-nodelay = on
-      |akka.remote.netty.tcp.connection-timeout = $akkaTimeout s
-      |akka.remote.netty.tcp.maximum-frame-size = ${akkaFrameSize}B
-      |akka.remote.netty.tcp.execution-pool-size = $akkaThreads
-      |akka.actor.default-dispatcher.throughput = $akkaBatchSize
-      |akka.log-config-on-start = $logAkkaConfig
-      |akka.remote.log-remote-lifecycle-events = $lifecycleEvents
-      |akka.log-dead-letters = $lifecycleEvents
-      |akka.log-dead-letters-during-shutdown = $lifecycleEvents
+         |akka.daemonic = on
+         |akka.loggers = [""akka.event.slf4j.Slf4jLogger""]
+         |akka.stdout-loglevel = "ERROR"
+         |akka.jvm-exit-on-fatal-error = off
+         |akka.remote.require-cookie = "$requireCookie"
+         |akka.remote.secure-cookie = "$secureCookie"
+         |akka.remote.transport-failure-detector.heartbeat-interval = $akkaHeartBeatInterval s
+         |akka.remote.transport-failure-detector.acceptable-heartbeat-pause = $akkaHeartBeatPauses s
+         |akka.actor.provider = "akka.remote.RemoteActorRefProvider"
+         |akka.remote.netty.tcp.transport-class = "akka.remote.transport.netty.NettyTransport"
+         |akka.remote.netty.tcp.hostname = "$host"
+         |akka.remote.netty.tcp.port = $port
+         |akka.remote.netty.tcp.tcp-nodelay = on
+         |akka.remote.netty.tcp.connection-timeout = $akkaTimeout s
+         |akka.remote.netty.tcp.maximum-frame-size = ${akkaFrameSize}B
+         |akka.remote.netty.tcp.execution-pool-size = $akkaThreads
+         |akka.actor.default-dispatcher.throughput = $akkaBatchSize
+         |akka.log-config-on-start = $logAkkaConfig
+         |akka.remote.log-remote-lifecycle-events = $lifecycleEvents
+         |akka.log-dead-letters = $lifecycleEvents
+         |akka.log-dead-letters-during-shutdown = $lifecycleEvents
       """.stripMargin))
 
     val actorSystem = ActorSystem(name, akkaConf)
@@ -135,22 +135,34 @@ private[spark] object AkkaUtils extends Logging {
     Duration.create(conf.getLong("spark.akka.lookupTimeout", 30), "seconds")
   }
 
+  /**
+    * Int.MaxValue / 1024 / 1024
+    */
   private val AKKA_MAX_FRAME_SIZE_IN_MB = Int.MaxValue / 1024 / 1024
 
-  /** Returns the configured max frame size for Akka messages in bytes. */
+  /**
+    * Returns the configured max frame size for Akka messages in bytes.<br>
+    * 返回spark中配置的akka系统中消息的大小的数值<br>默认值为：10MB
+    */
   def maxFrameSizeBytes(conf: SparkConf): Int = {
     val frameSizeInMB = conf.getInt("spark.akka.frameSize", 10)
     if (frameSizeInMB > AKKA_MAX_FRAME_SIZE_IN_MB) {
-      throw new IllegalArgumentException(
-        s"spark.akka.frameSize should not be greater than $AKKA_MAX_FRAME_SIZE_IN_MB MB")
+      throw new IllegalArgumentException(s"spark.akka.frameSize should not be greater than $AKKA_MAX_FRAME_SIZE_IN_MB MB")
     }
     frameSizeInMB * 1024 * 1024
   }
 
-  /** Space reserved for extra data in an Akka message besides serialized task or task result. */
+  /** Space reserved for extra data in an Akka message besides serialized task or task result.
+    * <br>在akka消息中为除了序列化task和task结果的数据之外保留的空间大小
+    * <br>
+    */
   val reservedSizeBytes = 200 * 1024
 
-  /** Returns the configured number of times to retry connecting */
+  /** Returns the configured number of times to retry connecting
+    *
+    *<br>返回重新连接的次数
+    *<br>默认3
+    */
   def numRetries(conf: SparkConf): Int = {
     conf.getInt("spark.akka.num.retries", 3)
   }
@@ -161,26 +173,26 @@ private[spark] object AkkaUtils extends Logging {
   }
 
   /**
-   * Send a message to the given actor and get its result within a default timeout, or
-   * throw a SparkException if this fails.
-   */
+    * Send a message to the given actor and get its result within a default timeout, or
+    * throw a SparkException if this fails.
+    */
   def askWithReply[T](
-      message: Any,
-      actor: ActorRef,
-      timeout: FiniteDuration): T = {
+                       message: Any,
+                       actor: ActorRef,
+                       timeout: FiniteDuration): T = {
     askWithReply[T](message, actor, maxAttempts = 1, retryInterval = Int.MaxValue, timeout)
   }
 
   /**
-   * Send a message to the given actor and get its result within a default timeout, or
-   * throw a SparkException if this fails even after the specified number of retries.
-   */
+    * Send a message to the given actor and get its result within a default timeout, or
+    * throw a SparkException if this fails even after the specified number of retries.
+    */
   def askWithReply[T](
-      message: Any,
-      actor: ActorRef,
-      maxAttempts: Int,
-      retryInterval: Int,
-      timeout: FiniteDuration): T = {
+                       message: Any,
+                       actor: ActorRef,
+                       maxAttempts: Int,
+                       retryInterval: Int,
+                       timeout: FiniteDuration): T = {
     // TODO: Consider removing multiple attempts
     if (actor == null) {
       throw new SparkException(s"Error sending message [message = $message]" +
@@ -222,11 +234,11 @@ private[spark] object AkkaUtils extends Logging {
   }
 
   def makeExecutorRef(
-      name: String,
-      conf: SparkConf,
-      host: String,
-      port: Int,
-      actorSystem: ActorSystem): ActorRef = {
+                       name: String,
+                       conf: SparkConf,
+                       host: String,
+                       port: Int,
+                       actorSystem: ActorSystem): ActorRef = {
     val executorActorSystemName = SparkEnv.executorActorSystemName
     Utils.checkHost(host, "Expected hostname")
     val url = address(protocol(actorSystem), executorActorSystemName, host, port, name)
@@ -250,11 +262,11 @@ private[spark] object AkkaUtils extends Logging {
   }
 
   def address(
-      protocol: String,
-      systemName: String,
-      host: String,
-      port: Any,
-      actorName: String): String = {
+               protocol: String,
+               systemName: String,
+               host: String,
+               port: Any,
+               actorName: String): String = {
     s"$protocol://$systemName@$host:$port/user/$actorName"
   }
 

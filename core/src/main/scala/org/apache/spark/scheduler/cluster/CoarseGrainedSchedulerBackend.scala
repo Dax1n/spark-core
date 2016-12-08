@@ -57,6 +57,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
   var totalRegisteredExecutors = new AtomicInteger(0)
   val conf = scheduler.sc.conf
   private val timeout = AkkaUtils.askTimeout(conf)
+  /**
+    * 返回akka系统中消息的大小
+    */
   private val akkaFrameSize = AkkaUtils.maxFrameSizeBytes(conf)
   // Submit tasks only after (registered resources / total expected resources)
   // is equal to at least this value, that is double between 0 and 1.
@@ -98,9 +101,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
 
 
       /**
-        *Periodically revive offers to allow delay scheduling to work
+        * Periodically revive offers to allow delay scheduling to work
         * <br>
-        *   定期恢复延迟调度的任务去执行的时间间隔
+        * 定期恢复延迟调度的任务去执行的时间间隔
         *
         */
       val reviveInterval = conf.getLong("spark.scheduler.revive.interval", 1000)
@@ -143,7 +146,7 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
           listenerBus.post(
             SparkListenerExecutorAdded(System.currentTimeMillis(), executorId, data))
 
-        //TODO 重点： 查看是否有任务需要提交？！ （DriverActor提交任务给Executor）
+          //TODO 重点： 查看是否有任务需要提交？！ （DriverActor提交任务给Executor）
           makeOffers()
         }
 
@@ -214,22 +217,36 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
 
     // Launch tasks returned by a set of resource offers
     def launchTasks(tasks: Seq[Seq[TaskDescription]]) {
+      //TODO 这个是DriverActor的方法
       for (task <- tasks.flatten) {
         //TODO 创建序列化器
         val ser = SparkEnv.get.closureSerializer.newInstance()
 
-        val serializedTask = ser.serialize(task)
+        /**
+          * 序列化之后的任务
+          *
+          */
+        val serializedTask = ser.serialize(task) //TODO 序列化之后的任务
 
+        //Buffer有limit、capacity、position三个指标
         if (serializedTask.limit >= akkaFrameSize - AkkaUtils.reservedSizeBytes) {
+          //TODO serializedTask过大，剩余空间不足reservedSizeBytes
           val taskSetId = scheduler.taskIdToTaskSetId(task.taskId)
-          scheduler.activeTaskSets.get(taskSetId).foreach { taskSet =>
+
+          //TaskSetManager的数据结构：
+          // TaskSetManager(sched: TaskSchedulerImpl,val taskSet: TaskSet,val maxTaskFailures: Int,clock: Clock = new SystemClock())
+          scheduler.activeTaskSets.get(taskSetId).foreach { taskSet => //scheduler为TaskSchedulerImpl类型
             try {
               var msg = "Serialized task %s:%d was %d bytes, which exceeds max allowed: " +
                 "spark.akka.frameSize (%d bytes) - reserved (%d bytes). Consider increasing " +
                 "spark.akka.frameSize or using broadcast variables for large values."
-              msg = msg.format(task.taskId, task.index, serializedTask.limit, akkaFrameSize,
-                AkkaUtils.reservedSizeBytes)
+
+              msg = msg.format(task.taskId, task.index, serializedTask.limit, akkaFrameSize, AkkaUtils.reservedSizeBytes)
+
+
               taskSet.abort(msg)
+
+
             } catch {
               case e: Exception => logError("Exception in error callback", e)
             }
@@ -263,6 +280,8 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
       }
     }
   }
+
+  //class DriverActor 定义结束
 
   var driverActor: ActorRef = null
   val taskIdsOnSlave = new HashMap[String, HashSet[String]]

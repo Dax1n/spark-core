@@ -517,6 +517,22 @@ private[spark] class DAGScheduler(
     waiter
   }
 
+  /**
+    * Run an action job on the given RDD and pass all the results to the resultHandler function as
+    * they arrive.
+    *
+    * @param rdd           target RDD to run tasks on
+    * @param func          a function to run on each partition of the RDD
+    * @param partitions    set of partitions to run on; some jobs may not want to compute on all
+    *                      partitions of the target RDD, e.g. for operations like first()
+    * @param callSite      where in the user program this job was called
+    * @param allowLocal
+    * @param resultHandler callback to pass each result to
+    * @param properties    scheduler properties to attach to this job, e.g. fair scheduler pool name
+    * @throws Exception when the job fails
+    *<br><br>正真触发一个作业运行的
+    *
+    */
   def runJob[T, U: ClassTag](
                               rdd: RDD[T],
                               func: (TaskContext, Iterator[T]) => U,
@@ -525,6 +541,7 @@ private[spark] class DAGScheduler(
                               allowLocal: Boolean,
                               resultHandler: (Int, U) => Unit,
                               properties: Properties): Unit = {
+    //TODO 真正触发作业运行的
     val start = System.nanoTime
     val waiter = submitJob(rdd, func, partitions, callSite, allowLocal, resultHandler, properties)
     waiter.awaitResult() match {

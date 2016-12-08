@@ -1494,6 +1494,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   /**
     * Capture the current user callsite and return a formatted version for printing. If the user
     * has overridden the call site using `setCallSite()`, this will return the user's version.
+    *
     */
   private[spark] def getCallSite(): CallSite = {
     Option(getLocalProperty(CallSite.SHORT_FORM)).map { case shortCallSite =>
@@ -1560,6 +1561,8 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
   /**
     * Run a job on all partitions in an RDD and return the results in an array.
+    *  在该RDD的所有分区上运行job，返回数组结果
+    *
     */
   def runJob[T, U: ClassTag](rdd: RDD[T], func: (TaskContext, Iterator[T]) => U): Array[U] = {
     runJob(rdd, func, 0 until rdd.partitions.size, false)
