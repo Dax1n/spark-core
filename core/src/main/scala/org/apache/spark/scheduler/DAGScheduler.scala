@@ -487,7 +487,11 @@ private[spark] class DAGScheduler(
   /**
     * Submit a job to the job scheduler and get a JobWaiter object back. The JobWaiter object
     * can be used to block until the the job finishes executing or can be used to cancel the job.
+    * <br>
+    *提交一个作业给作业调度器，然后返回一个JobWaiter对象。<br>
+    *  返回JobWaiter对象这个过程是阻塞的，直到作业完成计算或者作业取消计算返回。
     */
+  //TODO 真正触发作业运行的
   def submitJob[T, U](
                        rdd: RDD[T],
                        func: (TaskContext, Iterator[T]) => U,
@@ -497,6 +501,7 @@ private[spark] class DAGScheduler(
                        resultHandler: (Int, U) => Unit,
                        properties: Properties): JobWaiter[U] = {
     // Check to make sure we are not launching a task on a partition that does not exist.
+    //TODO 译文: 确保启动的每一个Task都有对应的partition存在
     val maxPartitions = rdd.partitions.length
     partitions.find(p => p >= maxPartitions || p < 0).foreach { p =>
       throw new IllegalArgumentException(
@@ -512,8 +517,9 @@ private[spark] class DAGScheduler(
     assert(partitions.size > 0)
     val func2 = func.asInstanceOf[(TaskContext, Iterator[_]) => _]
     val waiter = new JobWaiter(this, jobId, partitions.size, resultHandler)
-    eventProcessLoop.post(JobSubmitted(
-      jobId, rdd, func2, partitions.toArray, allowLocal, callSite, waiter, properties))
+
+    eventProcessLoop.post(JobSubmitted(jobId, rdd, func2, partitions.toArray, allowLocal, callSite, waiter, properties))
+
     waiter
   }
 
@@ -533,6 +539,7 @@ private[spark] class DAGScheduler(
     *<br><br>正真触发一个作业运行的
     *
     */
+  //TODO DAGScheduler的 runJob方法，用来切分Stage的
   def runJob[T, U: ClassTag](
                               rdd: RDD[T],
                               func: (TaskContext, Iterator[T]) => U,
@@ -541,9 +548,12 @@ private[spark] class DAGScheduler(
                               allowLocal: Boolean,
                               resultHandler: (Int, U) => Unit,
                               properties: Properties): Unit = {
-    //TODO 真正触发作业运行的
+
     val start = System.nanoTime
+    //TODO 真正触发作业运行的
     val waiter = submitJob(rdd, func, partitions, callSite, allowLocal, resultHandler, properties)
+
+    //作业执行完毕，模式匹配完成的状态，并记录日志
     waiter.awaitResult() match {
       case JobSucceeded => {
         logInfo("Job %d finished: %s, took %f s".format
@@ -554,7 +564,9 @@ private[spark] class DAGScheduler(
         (waiter.jobId, callSite.shortForm, (System.nanoTime - start) / 1e9))
         throw exception
     }
-  }
+  }// runJob方法定义结束
+
+
 
   def runApproximateJob[T, U, R](
                                   rdd: RDD[T],

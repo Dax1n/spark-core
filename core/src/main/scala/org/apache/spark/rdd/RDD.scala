@@ -1286,8 +1286,9 @@ abstract class RDD[T: ClassTag](
         (NullWritable.get(), text)
       }
     }
+    //TODO rddToPairRDDFunctions这么做的目的是为了HADOOP存储时候是key value对存储的
     RDD.rddToPairRDDFunctions(r)(nullWritableClassTag, textClassTag, null)
-      .saveAsHadoopFile[TextOutputFormat[NullWritable, Text]](path)
+              .saveAsHadoopFile[TextOutputFormat[NullWritable, Text]](path)
   }
 
   /**

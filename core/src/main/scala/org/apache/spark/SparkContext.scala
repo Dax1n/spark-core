@@ -97,7 +97,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
 
   /**
-    *  The call site where this SparkContext was constructed.
+    * The call site where this SparkContext was constructed.
     */
   private val creationSite: CallSite = Utils.getCallSite()
 
@@ -1503,11 +1503,21 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     }.getOrElse(Utils.getCallSite())
   }
 
+
   /**
     * Run a function on a given set of partitions in an RDD and pass the results to the given
     * handler function. This is the main entry point for all actions in Spark. The allowLocal
     * flag specifies whether the scheduler can run the computation on the driver rather than
     * shipping it out to the cluster, for short actions like first().
+    * <br><br>
+    *
+    * @param rdd
+    * @param func
+    * @param partitions
+    * @param allowLocal
+    * @param resultHandler
+    * @tparam T
+    * @tparam U
     */
   def runJob[T, U: ClassTag](
                               rdd: RDD[T],
@@ -1521,11 +1531,18 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     val callSite = getCallSite
     val cleanedFunc = clean(func)
     logInfo("Starting job: " + callSite.shortForm)
+    //TODO spark.logLineage是配置是否打印RDD血统的配置项，默认值false，也可以手动调用rdd.toDebugString打印
     if (conf.getBoolean("spark.logLineage", false)) {
+      //TODO 如果true，记录到日志中
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }
-    dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, allowLocal,
-      resultHandler, localProperties.get)
+
+    //TODO 真正触发Job执行
+    //TODO 重点，传说中DAGScheduler终于出现了，用于切分成Stage！！！ 然后在转成TaskSet给TaskScheduler再提交给Exceutor
+    dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, allowLocal, resultHandler, localProperties.get)
+
+
+    //打印进度
     progressBar.foreach(_.finishAll())
     rdd.doCheckpoint()
   }
@@ -1535,13 +1552,24 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     * allowLocal flag specifies whether the scheduler can run the computation on the driver rather
     * than shipping it out to the cluster, for short actions like first().
     */
+  /**
+    *
+    * @param rdd        最终的RDD
+    * @param func       一般是数据持久化函数，例如写到HDFS函数
+    * @param partitions
+    * @param allowLocal 是否允许本地执行
+    * @tparam T
+    * @tparam U
+    * @return
+    */
   def runJob[T, U: ClassTag](
                               rdd: RDD[T],
                               func: (TaskContext, Iterator[T]) => U,
                               partitions: Seq[Int],
-                              allowLocal: Boolean
-                            ): Array[U] = {
-    val results = new Array[U](partitions.size)
+                              allowLocal: Boolean): Array[U] = {
+
+    val results = new Array[U](partitions.size) //定义结果数组
+    //完成计算并且存储
     runJob[T, U](rdd, func, partitions, allowLocal, (index, res) => results(index) = res)
     results
   }
@@ -1561,9 +1589,10 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
   /**
     * Run a job on all partitions in an RDD and return the results in an array.
-    *  在该RDD的所有分区上运行job，返回数组结果
-    *
+    * 在该RDD的所有分区上运行job，返回数组结果
+    * <br><br> 将最有一个RDD和函数（该函数一般是数据持久化的函数，例如写到HDFS函数）传入到该方法中
     */
+  //TODO 将最有一个RDD和函数（该函数是写数据到hdfs的函数）传入到该方法中
   def runJob[T, U: ClassTag](rdd: RDD[T], func: (TaskContext, Iterator[T]) => U): Array[U] = {
     runJob(rdd, func, 0 until rdd.partitions.size, false)
   }
@@ -2257,7 +2286,7 @@ object SparkContext extends Logging {
           val cons = clazz.getConstructor(classOf[SparkContext])
 
           /**
-            *YarnClusterScheduler 和TaskSchedulerImpl关系
+            * YarnClusterScheduler 和TaskSchedulerImpl关系
             *
             * private[spark] class YarnClusterScheduler(sc: SparkContext) extends YarnScheduler(sc)
             *
@@ -2265,7 +2294,7 @@ object SparkContext extends Logging {
             *
             */
 
-          cons.newInstance(sc).asInstanceOf[TaskSchedulerImpl]//创建scheduler
+          cons.newInstance(sc).asInstanceOf[TaskSchedulerImpl] //创建scheduler
         } catch {
           // TODO: Enumerate the exact reasons why it can fail
           // But irrespective of it, it means we cannot proceed !
