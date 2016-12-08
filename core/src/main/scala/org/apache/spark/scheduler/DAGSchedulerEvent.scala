@@ -43,8 +43,7 @@ private[scheduler] case class JobSubmitted(
     allowLocal: Boolean,
     callSite: CallSite,
     listener: JobListener,
-    properties: Properties = null)
-  extends DAGSchedulerEvent
+    properties: Properties = null)  extends DAGSchedulerEvent
 
 private[scheduler] case class StageCancelled(stageId: Int) extends DAGSchedulerEvent
 

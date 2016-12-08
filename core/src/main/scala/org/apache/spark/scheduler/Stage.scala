@@ -25,36 +25,46 @@ import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.util.CallSite
 
 /**
- * A stage is a set of independent tasks all computing the same function that need to run as part
- * of a Spark job, where all the tasks have the same shuffle dependencies. Each DAG of tasks run
- * by the scheduler is split up into stages at the boundaries where shuffle occurs, and then the
- * DAGScheduler runs these stages in topological order.
- *
- * Each Stage can either be a shuffle map stage, in which case its tasks' results are input for
- * another stage, or a result stage, in which case its tasks directly compute the action that
- * initiated a job (e.g. count(), save(), etc). For shuffle map stages, we also track the nodes
- * that each output partition is on.
- *
- * Each Stage also has a jobId, identifying the job that first submitted the stage.  When FIFO
- * scheduling is used, this allows Stages from earlier jobs to be computed first or recovered
- * faster on failure.
- *
- * The callSite provides a location in user code which relates to the stage. For a shuffle map
- * stage, the callSite gives the user code that created the RDD being shuffled. For a result
- * stage, the callSite gives the user code that executes the associated action (e.g. count()).
- *
- * A single stage can consist of multiple attempts. In that case, the latestInfo field will
- * be updated for each attempt.
- *
- */
+  * A stage is a set of independent tasks all computing the same function that need to run as part
+  * of a Spark job, where all the tasks have the same shuffle dependencies. Each DAG of tasks run
+  * by the scheduler is split up into stages at the boundaries where shuffle occurs, and then the
+  * DAGScheduler runs these stages in topological（拓扑的） order.
+  *
+  * Each Stage can either be a shuffle map stage, in which case its tasks' results are input for
+  * another stage, or a result stage, in which case its tasks directly compute the action that
+  * initiated a job (e.g. count(), save(), etc). For shuffle map stages, we also track the nodes
+  * that each output partition is on.
+  *
+  * Each Stage also has a jobId, identifying the job that first submitted the stage.  When FIFO
+  * scheduling is used, this allows Stages from earlier jobs to be computed first or recovered
+  * faster on failure.
+  *
+  * The callSite provides a location in user code which relates to the stage. For a shuffle map
+  * stage, the callSite gives the user code that created the RDD being shuffled. For a result
+  * stage, the callSite gives the user code that executes the associated action (e.g. count()).
+  *
+  * A single stage can consist of multiple attempts. In that case, the latestInfo field will
+  * be updated for each attempt.
+  *
+  *
+  *
+  * @param id
+  * @param rdd
+  * @param numTasks
+  * @param shuffleDep
+  * @param parents
+  * @param jobId
+  * @param callSite
+  */
+
 private[spark] class Stage(
-    val id: Int,
-    val rdd: RDD[_],
-    val numTasks: Int,
-    val shuffleDep: Option[ShuffleDependency[_, _, _]],  // Output shuffle if stage is a map stage
-    val parents: List[Stage],
-    val jobId: Int,
-    val callSite: CallSite)
+                            val id: Int,
+                            val rdd: RDD[_],
+                            val numTasks: Int,
+                            val shuffleDep: Option[ShuffleDependency[_, _, _]], // Output shuffle if stage is a map stage
+                            val parents: List[Stage],
+                            val jobId: Int,
+                            val callSite: CallSite)
   extends Logging {
 
   val isShuffleMap = shuffleDep.isDefined
@@ -103,10 +113,10 @@ private[spark] class Stage(
   }
 
   /**
-   * Removes all shuffle outputs associated with this executor. Note that this will also remove
-   * outputs which are served by an external shuffle server (if one exists), as they are still
-   * registered with this execId.
-   */
+    * Removes all shuffle outputs associated with this executor. Note that this will also remove
+    * outputs which are served by an external shuffle server (if one exists), as they are still
+    * registered with this execId.
+    */
   def removeOutputsOnExecutor(execId: String) {
     var becameUnavailable = false
     for (partition <- 0 until numPartitions) {

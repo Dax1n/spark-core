@@ -39,16 +39,27 @@ import org.apache.spark.Logging
   * <br>
   * <br>注意：这个事件队列不是无限扩增的，因此子类应该确保`onReceive`能够及时处理事件，避免OOM
   * <br>
-  *
+  *<br>EventLoop的重要成员有<br>1：eventQueue: BlockingQueue[E] <br> 2： eventThread = new Thread(name) 事件处理线程
   *
   *
   */
 private[spark] abstract class EventLoop[E](name: String) extends Logging {
 
+  /**
+    * 这个一个阻塞队列，获取不到消息时阻塞<br>eventQueue: BlockingQueue[E] = new LinkedBlockingDeque[E]()
+    */
   private val eventQueue: BlockingQueue[E] = new LinkedBlockingDeque[E]()
 
   private val stopped = new AtomicBoolean(false)
 
+  /**
+    * 这个就是事件处理器EventLoop的处理线程、
+    *<br>在线程的run方法中完成时间的处理<br>
+    *   调用onReceive(event)方法，<br>
+    *     在EventLoop的实现类中通过模式匹配完成对应事件的处理
+    *
+    */
+    // TODO 这个就是事件处理器EventLoop的处理线程、
   private val eventThread = new Thread(name) {
     setDaemon(true)
 
@@ -136,7 +147,9 @@ private[spark] abstract class EventLoop[E](name: String) extends Logging {
     * Note: Should avoid calling blocking actions in `onReceive`, or the event thread will be blocked
     * and cannot process events in time. If you want to call some blocking actions, run them in
     * another thread.
+    *
     */
+//  TODO 看实现类
   protected def onReceive(event: E): Unit
 
   /**

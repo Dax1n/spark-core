@@ -18,37 +18,43 @@
 package org.apache.spark.util
 
 /**
- * An interface to represent clocks, so that they can be mocked（假的；伪装的；模拟的） out in unit tests.
- */
+  * An interface to represent clocks, so that they can be mocked（假的；伪装的；模拟的） out in unit tests.
+  *
+  * 方法：<br>
+  * <br>def getTimeMillis(): Long
+  * <br><br>def waitTillTime(targetTime: Long): Long
+  *
+  */
 private[spark] trait Clock {
 
   /**
     *
-    * @return   System.currentTimeMillis()
+    * @return System.currentTimeMillis()
     */
   def getTimeMillis(): Long
+
   def waitTillTime(targetTime: Long): Long
 }
 
 /**
- * A clock backed by the actual time from the OS as reported by the `System` API.
+  * A clock backed by the actual time from the OS as reported by the `System` API.
   *
   *
- */
+  */
 private[spark] class SystemClock extends Clock {
 
   val minPollTime = 25L
 
   /**
-   * @return the same time (milliseconds since the epoch)
-   *         as is reported by `System.currentTimeMillis()`
-   */
+    * @return the same time (milliseconds since the epoch)
+    *         as is reported by `System.currentTimeMillis()`
+    */
   def getTimeMillis(): Long = System.currentTimeMillis()
 
   /**
-   * @param targetTime block until the current time is at least this value
-   * @return current system time when wait has completed
-   */
+    * @param targetTime block until the current time is at least this value
+    * @return current system time when wait has completed
+    */
   def waitTillTime(targetTime: Long): Long = {
     var currentTime = 0L
     currentTime = System.currentTimeMillis()

@@ -28,6 +28,14 @@ import org.apache.spark.shuffle.ShuffleHandle
  */
 @DeveloperApi
 abstract class Dependency[T] extends Serializable {
+
+  /**
+    *
+    * 例如：rdd1 经过transform 生成  rdd2 <br>
+    * 这个dependency中的rdd就是rdd1
+    *
+    * @return
+    */
   def rdd: RDD[T]
 }
 

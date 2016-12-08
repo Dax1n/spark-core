@@ -23,18 +23,29 @@ import org.apache.spark.TaskContext
 import org.apache.spark.util.CallSite
 
 /**
- * Tracks information about an active job in the DAGScheduler.
- */
+  * Tracks information about an active job in the DAGScheduler.
+  *
+  * 记录该 DAGScheduler中 active job的信息<br>指标有：<br>
+  *<br> 1：numPartitions 分区数 <br>2：finished 分区完成情况<br>3：numFinished完成个数
+  *
+  */
 private[spark] class ActiveJob(
-    val jobId: Int,
-    val finalStage: Stage,
-    val func: (TaskContext, Iterator[_]) => _,
-    val partitions: Array[Int],
-    val callSite: CallSite,
-    val listener: JobListener,
-    val properties: Properties) {
+                                val jobId: Int,
+                                val finalStage: Stage,
+                                val func: (TaskContext, Iterator[_]) => _,
+                                val partitions: Array[Int],
+                                val callSite: CallSite,
+                                val listener: JobListener,
+                                val properties: Properties) {
 
   val numPartitions = partitions.length
+  /**
+    * Array.fill[Boolean](numPartitions)(false)是初始化一个numPartitions大小的数组，其中每一个元素的值为false<br>
+    *   <br>
+    */
   val finished = Array.fill[Boolean](numPartitions)(false)
+
   var numFinished = 0
+
+
 }
