@@ -72,11 +72,21 @@ private[spark] class Stage(
   val outputLocs = Array.fill[List[MapStatus]](numPartitions)(Nil)
   var numAvailableOutputs = 0
 
-  /** Set of jobs that this stage belongs to. */
+  /**
+    * Set of jobs that this stage belongs to.
+    *
+    * 该stage属于的jobId的集合
+    *
+    */
   val jobIds = new HashSet[Int]
 
-  /** For stages that are the final (consists of only ResultTasks), link to the ActiveJob. */
+  /**
+    *  For stages that are the final (consists of only ResultTasks), link to the ActiveJob.
+    *
+    */
   var resultOfJob: Option[ActiveJob] = None
+
+
   var pendingTasks = new HashSet[Task[_]]
 
   private var nextAttemptId = 0
@@ -84,7 +94,9 @@ private[spark] class Stage(
   val name = callSite.shortForm
   val details = callSite.longForm
 
-  /** Pointer to the latest [StageInfo] object, set by DAGScheduler. */
+  /** Pointer to the latest [StageInfo] object, set by DAGScheduler.
+    * <br>最新的info
+    */
   var latestInfo: StageInfo = StageInfo.fromStage(this)
 
   def isAvailable: Boolean = {

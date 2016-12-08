@@ -107,6 +107,11 @@ private[spark] class DAGScheduler(
 
   private val nextStageId = new AtomicInteger(0)
 
+  /**
+    * private[scheduler] val jobIdToStageIds = new HashMap[Int, HashSet[Int]]<br>
+    * jobId ->StageIds的映射
+    *
+    */
   private[scheduler] val jobIdToStageIds = new HashMap[Int, HashSet[Int]]
   private[scheduler] val stageIdToStage = new HashMap[Int, Stage]
 
@@ -118,7 +123,7 @@ private[spark] class DAGScheduler(
 
   /**
     * HashMap数据结构：key为jobId value为ActiveJob<br>
-    *   记录当前ActiveJob的容器
+    * 记录当前ActiveJob的容器
     *
     */
   private[scheduler] val jobIdToActiveJob = new HashMap[Int, ActiveJob]
@@ -132,6 +137,9 @@ private[spark] class DAGScheduler(
   // Stages that must be resubmitted due to fetch failures
   private[scheduler] val failedStages = new HashSet[Stage]
 
+  /**
+    * activeJobs
+    */
   private[scheduler] val activeJobs = new HashSet[ActiveJob]
 
   /**
@@ -761,7 +769,7 @@ private[spark] class DAGScheduler(
     * We run the operation in a separate thread just in case it takes a bunch of time, so that we
     * don't block the DAGScheduler event loop or other concurrent jobs.<br>
     * 在RDD所在的位置本地运行一个job，它只有一个分区和无依赖，我们运行一个线程处理，<br>
-    *   这么做的好处是不阻塞DAGScheduler事件循环处理和其他并发作业
+    * 这么做的好处是不阻塞DAGScheduler事件循环处理和其他并发作业
     *
     */
   protected def runLocally(job: ActiveJob) {
@@ -815,8 +823,11 @@ private[spark] class DAGScheduler(
   // That should take care of at least part of the priority inversion problem with
   // cross-job dependencies.
   private def activeJobForStage(stage: Stage): Option[Int] = {
+
     val jobsThatUseStage: Array[Int] = stage.jobIds.toArray.sorted
+
     jobsThatUseStage.find(jobIdToActiveJob.contains)
+
   }
 
   private[scheduler] def handleJobGroupCancelled(groupId: String) {
@@ -942,15 +953,22 @@ private[spark] class DAGScheduler(
         runLocally(job)
       } else {
 
-        //
+        //记录activeJobs
         jobIdToActiveJob(jobId) = job
         activeJobs += job
+
+
         finalStage.resultOfJob = Some(job)
+
+        //获取该jobId的 stageIds
         val stageIds = jobIdToStageIds(jobId).toArray
+
+        // TODO 把stage生成stageInfo
         val stageInfos = stageIds.flatMap(id => stageIdToStage.get(id).map(_.latestInfo))
 
         listenerBus.post(SparkListenerJobStart(job.jobId, jobSubmissionTime, stageInfos, properties))
 
+        // TODO 递归提交每一个stage
         submitStage(finalStage)
       }
 
@@ -958,19 +976,33 @@ private[spark] class DAGScheduler(
     submitWaitingStages()
   }
 
-  /** Submits stage, but first recursively submits any missing parents. */
+  /**
+    * Submits stage, but first recursively submits any missing parents.<br>
+    * 提交stage，递归提交每一个stage的parent stage
+    *
+    */
   private def submitStage(stage: Stage) {
+
     val jobId = activeJobForStage(stage)
+
     if (jobId.isDefined) {
       logDebug("submitStage(" + stage + ")")
+      // TODO  waitingStages中不含有该stage 并且runningStages中不含有该stage 并且failedStages不含有该stage 则提交
       if (!waitingStages(stage) && !runningStages(stage) && !failedStages(stage)) {
+
         val missing = getMissingParentStages(stage).sortBy(_.id)
+
         logDebug("missing: " + missing)
+
+        //TODO 重要重要重要   ：这个递归提交的终止条件
         if (missing == Nil) {
+          //TODO  missing中不存在stage了，则提交stage (此时：stage是第一个stage，该stage前面在没有stage了)
           logInfo("Submitting " + stage + " (" + stage.rdd + "), which has no missing parents")
           submitMissingTasks(stage, jobId.get)
         } else {
           for (parent <- missing) {
+
+            //TODO 调用递归实现递归提交
             submitStage(parent)
           }
           waitingStages += stage
@@ -981,7 +1013,17 @@ private[spark] class DAGScheduler(
     }
   }
 
-  /** Called when stage's parents are available and we can now do its task. */
+
+
+
+  /**
+    *
+    * Called when stage's parents are available and we can now do its task.
+    *
+    *
+    *
+    *
+    */
   private def submitMissingTasks(stage: Stage, jobId: Int) {
     logDebug("submitMissingTasks(" + stage + ")")
     // Get our pending tasks and remember them in our pendingTasks entry
@@ -1073,6 +1115,9 @@ private[spark] class DAGScheduler(
         stage.isAvailable, stage.numAvailableOutputs, stage.numPartitions))
     }
   }
+
+
+
 
   /** Merge updates from a task to our local accumulator values */
   private def updateAccumulators(event: CompletionEvent): Unit = {

@@ -51,11 +51,13 @@ class StageInfo(
 
 private[spark] object StageInfo {
   /**
-   * Construct a StageInfo from a Stage.
-   *
+   * Construct a StageInfo from a Stage.<br>
+   *根据一个Stage构建StageInfo <br>
    * Each Stage is associated with one or many RDDs, with the boundary of a Stage marked by
    * shuffle dependencies. Therefore, all ancestor RDDs related to this Stage's RDD through a
    * sequence of narrow dependencies should also be associated with this Stage.
+    *
+    *
    */
   def fromStage(stage: Stage, numTasks: Option[Int] = None): StageInfo = {
     val ancestorRddInfos = stage.rdd.getNarrowAncestors.map(RDDInfo.fromRdd)

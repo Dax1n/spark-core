@@ -24,10 +24,33 @@
       <file leaf-file-name="DAGScheduler.scala" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="284">
-              <caret line="943" column="0" selection-start-line="943" selection-start-column="0" selection-end-line="943" selection-end-column="0" />
+            <state relative-caret-position="212">
+              <caret line="1026" column="60" selection-start-line="1026" selection-start-column="60" selection-end-line="1026" selection-end-column="60" />
               <folding>
                 <element signature="e#838#877#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="LiveListenerBus.scala" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/LiveListenerBus.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="240">
+              <caret line="27" column="94" selection-start-line="27" selection-start-column="94" selection-end-line="27" selection-end-column="94" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="HashMap.scala" pinned="false" current-in-tab="false">
+        <entry file="jar://$MAVEN_REPOSITORY$/org/scala-lang/scala-library/2.10.4/scala-library-2.10.4-sources.jar!/scala/collection/mutable/HashMap.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="305">
+              <caret line="61" column="35" selection-start-line="61" selection-start-column="35" selection-end-line="61" selection-end-column="35" />
+              <folding>
+                <element signature="n#!!doc" expanded="false" />
+                <element signature="e#568#584#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -58,8 +81,18 @@
       <file leaf-file-name="Stage.scala" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/Stage.scala">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="836">
-              <caret line="64" column="32" selection-start-line="64" selection-start-column="32" selection-end-line="64" selection-end-column="32" />
+            <state relative-caret-position="212">
+              <caret line="75" column="45" selection-start-line="75" selection-start-column="45" selection-end-line="75" selection-end-column="45" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="StageInfo.scala" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/StageInfo.scala">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="452">
+              <caret line="61" column="6" selection-start-line="61" selection-start-column="6" selection-end-line="61" selection-end-column="6" />
               <folding />
             </state>
           </provider>
@@ -95,36 +128,6 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="DAGSchedulerEvent.scala" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/DAGSchedulerEvent.scala">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="294">
-              <caret line="37" column="30" selection-start-line="37" selection-start-column="30" selection-end-line="37" selection-end-column="30" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="EventLoop.scala" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/util/EventLoop.scala">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-210">
-              <caret line="45" column="42" selection-start-line="45" selection-start-column="42" selection-end-line="45" selection-end-column="42" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="EventLoopSuite.scala" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/test/scala/org/apache/spark/util/EventLoopSuite.scala">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="294">
-              <caret line="210" column="38" selection-start-line="210" selection-start-column="38" selection-end-line="210" selection-end-column="38" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
     </leaf>
   </component>
   <component name="FileTemplateManagerImpl">
@@ -142,8 +145,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/Command.scala" />
-        <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/ApplicationDescription.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/master/WorkerState.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/master/PersistenceEngine.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/SparkSubmit.scala" />
@@ -190,8 +191,10 @@
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/util/EventLoop.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/Dependency.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/ActiveJob.scala" />
-        <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/Stage.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/util/Clock.scala" />
+        <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/StageInfo.scala" />
+        <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/LiveListenerBus.scala" />
+        <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/Stage.scala" />
         <option value="$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala" />
       </list>
     </option>
@@ -720,28 +723,6 @@
     <option name="FILTER_TARGETS" value="false" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/client/AppClient.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="284">
-          <caret line="172" column="37" selection-start-line="172" selection-start-column="17" selection-end-line="172" selection-end-column="37" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/TaskScheduler.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="65">
-          <caret line="29" column="16" selection-start-line="29" selection-start-column="16" selection-end-line="29" selection-end-column="16" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/master/ApplicationState.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="25" column="24" selection-start-line="25" selection-start-column="22" selection-end-line="25" selection-end-column="24" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/deploy/master/Master.scala">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="260">
@@ -1121,14 +1102,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/Stage.scala">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="836">
-          <caret line="64" column="32" selection-start-line="64" selection-start-column="32" selection-end-line="64" selection-end-column="32" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/util/ManualClock.scala">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="264">
@@ -1147,10 +1120,45 @@
         </state>
       </provider>
     </entry>
+    <entry file="jar://$MAVEN_REPOSITORY$/org/scala-lang/scala-library/2.10.4/scala-library-2.10.4-sources.jar!/scala/collection/mutable/HashMap.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="305">
+          <caret line="61" column="35" selection-start-line="61" selection-start-column="35" selection-end-line="61" selection-end-column="35" />
+          <folding>
+            <element signature="n#!!doc" expanded="false" />
+            <element signature="e#568#584#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/LiveListenerBus.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="240">
+          <caret line="27" column="94" selection-start-line="27" selection-start-column="94" selection-end-line="27" selection-end-column="94" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/StageInfo.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="452">
+          <caret line="61" column="6" selection-start-line="61" selection-start-column="6" selection-end-line="61" selection-end-column="6" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/Stage.scala">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="212">
+          <caret line="75" column="45" selection-start-line="75" selection-start-column="45" selection-end-line="75" selection-end-column="45" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="284">
-          <caret line="943" column="0" selection-start-line="943" selection-start-column="0" selection-end-line="943" selection-end-column="0" />
+        <state relative-caret-position="212">
+          <caret line="1026" column="60" selection-start-line="1026" selection-start-column="60" selection-end-line="1026" selection-end-column="60" />
           <folding>
             <element signature="e#838#877#0" expanded="true" />
           </folding>
