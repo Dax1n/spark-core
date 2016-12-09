@@ -67,15 +67,19 @@ private[spark] abstract class Task[T](val stageId: Int, var partitionId: Int) ex
     * @return the result of the task
     */
   final def run(taskAttemptId: Long, attemptNumber: Int): T = {
-    context = new TaskContextImpl(stageId = stageId, partitionId = partitionId,
-      taskAttemptId = taskAttemptId, attemptNumber = attemptNumber, runningLocally = false)
+
+    context = new TaskContextImpl(stageId = stageId, partitionId = partitionId, taskAttemptId = taskAttemptId, attemptNumber = attemptNumber, runningLocally = false)
+
     TaskContextHelper.setTaskContext(context)
+
     context.taskMetrics.setHostname(Utils.localHostName())
     taskThread = Thread.currentThread()
+
     if (_killed) {
       kill(interruptThread = false)
     }
     try {
+      //TODO 子类实现
       runTask(context)
     } finally {
       context.markTaskCompleted()

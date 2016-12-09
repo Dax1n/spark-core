@@ -54,13 +54,23 @@ private[spark] class ShuffleMapTask(
     if (locs == null) Nil else locs.toSet.toSeq
   }
 
+  /**
+    *
+    *
+    * @param context
+    * @return
+    */
   override def runTask(context: TaskContext): MapStatus = {
     // Deserialize the RDD using the broadcast variable.
     val ser = SparkEnv.get.closureSerializer.newInstance()
+
+    //TODO taskBinary是一个广播变量，广播的是RDD信息
     val (rdd, dep) = ser.deserialize[(RDD[_], ShuffleDependency[_, _, _])](
       ByteBuffer.wrap(taskBinary.value), Thread.currentThread.getContextClassLoader)
 
+
     metrics = Some(context.taskMetrics)
+
     var writer: ShuffleWriter[Any, Any] = null
     try {
       val manager = SparkEnv.get.shuffleManager
@@ -80,6 +90,8 @@ private[spark] class ShuffleMapTask(
         throw e
     }
   }
+
+
 
   override def preferredLocations: Seq[TaskLocation] = preferredLocs
 
