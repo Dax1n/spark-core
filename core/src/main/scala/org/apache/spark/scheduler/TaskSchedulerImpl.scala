@@ -87,7 +87,9 @@ private[spark] class TaskSchedulerImpl(
     */
   val STARVATION_TIMEOUT = conf.getLong("spark.starvation.timeout", 15000)
 
-  // CPUs to request per task
+  /**
+    * CPUs to request per task<br>每一个task请求的cpu数目<br>使用spark.task.cpus配置，默认值1
+    */
   val CPUS_PER_TASK = conf.getInt("spark.task.cpus", 1)
 
   // TaskSetManagers are not thread safe, so any access to one should be synchronized
@@ -95,18 +97,21 @@ private[spark] class TaskSchedulerImpl(
   /**
     * TaskSetManagers不是线程安全的，因此访问它必须使用synchronized
     * <br>
-    *taskSetId -> TaskSetManager 映射
+    * taskSetId -> TaskSetManager 映射
     */
   val activeTaskSets = new HashMap[String, TaskSetManager]
 
   /**
-    *   val taskIdToTaskSetId = new HashMap[Long, String]<br>
-    *     taskId->taskSetId映射
+    * val taskIdToTaskSetId = new HashMap[Long, String]<br>
+    * taskId->taskSetId映射
     */
   val taskIdToTaskSetId = new HashMap[Long, String]
 
   val taskIdToExecutorId = new HashMap[Long, String]
 
+  /**
+    * private var hasReceivedTask = false
+    */
   @volatile private var hasReceivedTask = false
   @volatile private var hasLaunchedTask = false
   private val starvationTimer = new Timer(true)
@@ -200,15 +205,27 @@ private[spark] class TaskSchedulerImpl(
     waitBackendReady()
   }
 
+
+  /**
+    * TaskScheduler提交TaskSet
+    *
+    * @param taskSet
+    */
+  //TODO 完成taskSet的提交
   override def submitTasks(taskSet: TaskSet) {
+    //取出taskSet中所有的tasks
     val tasks = taskSet.tasks
     logInfo("Adding task set " + taskSet.id + " with " + tasks.length + " tasks")
     this.synchronized {
       val manager = createTaskSetManager(taskSet, maxTaskFailures)
       activeTaskSets(taskSet.id) = manager
+
       schedulableBuilder.addTaskSetManager(manager, manager.taskSet.properties)
 
       if (!isLocal && !hasReceivedTask) {
+
+        //    scheduleAtFixedRate Java Api  ：   安排指定的任务在指定的延迟后开始进行重复的固定速率执行。
+        // 以近似固定的时间间隔（由指定的周期分隔）进行后续执行。
         starvationTimer.scheduleAtFixedRate(new TimerTask() {
           override def run() {
             if (!hasLaunchedTask) {
@@ -216,13 +233,16 @@ private[spark] class TaskSchedulerImpl(
                 "check your cluster UI to ensure that workers are registered " +
                 "and have sufficient resources")
             } else {
-              this.cancel()
+              //Java Timer Api ：终止此计时器，丢弃所有当前已安排的任务。
+              this.cancel()//TODO hasReceivedTask=true，表示已经接受成功，取消定时任务
             }
           }
         }, STARVATION_TIMEOUT, STARVATION_TIMEOUT)
       }
       hasReceivedTask = true
     }
+
+    //TODO 向driverActor发消息,调用makeOffers向Executor提交Task
     backend.reviveOffers()
   }
 

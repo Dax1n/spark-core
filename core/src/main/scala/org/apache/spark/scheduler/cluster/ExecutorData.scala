@@ -27,6 +27,7 @@ import akka.actor.{Address, ActorRef}
  * @param executorHost The hostname that this executor is running on
  * @param freeCores  The current number of cores available for work on the executor
  * @param totalCores The total number of cores available to the executor
+  *
  */
 private[cluster] class ExecutorData(
    val executorActor: ActorRef,

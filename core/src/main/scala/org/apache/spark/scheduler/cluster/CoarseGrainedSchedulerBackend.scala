@@ -71,6 +71,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
   conf.getInt("spark.scheduler.maxRegisteredResourcesWaitingTime", 30000)
   val createTime = System.currentTimeMillis()
 
+  /**
+    * executorId ->ExecutorData  的映射
+    */
   private val executorDataMap = new HashMap[String, ExecutorData]
 
   // Number of executors requested from the cluster manager that have not registered yet
@@ -89,6 +92,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
     * <br>DriverActor负责提交task给Executor
     *
     * @param sparkProperties
+    *
+    * DriverActor定义开始于：96-297行
+    *
     */
   class DriverActor(sparkProperties: Seq[(String, String)]) extends Actor with ActorLogReceive {
     override protected def log = CoarseGrainedSchedulerBackend.this.log
@@ -164,7 +170,11 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
           }
         }
 
+      /**
+        *
+        */
       case ReviveOffers =>
+      //TODO 调用makeOffers向Executor提交Task
         makeOffers()
 
       case KillTask(taskId, executorId, interruptThread) =>
@@ -202,7 +212,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
     /**
       * Make fake resource offers on all executors
       */
+    //调用makeOffers向Executor提交Task
     def makeOffers() {
+      //TODO 调用launchTasks向Executor启动Task
       launchTasks(scheduler.resourceOffers(executorDataMap.map { case (id, executorData) =>
         new WorkerOffer(id, executorData.executorHost, executorData.freeCores)
       }.toSeq))
@@ -215,16 +227,18 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
         Seq(new WorkerOffer(executorId, executorData.executorHost, executorData.freeCores))))
     }
 
-    // Launch tasks returned by a set of resource offers
+    /**
+      * Launch tasks returned by a set of resource offers
+      * @param tasks
+      */
     def launchTasks(tasks: Seq[Seq[TaskDescription]]) {
       //TODO 这个是DriverActor的方法
       for (task <- tasks.flatten) {
-        //TODO 创建序列化器
+        //TODO 创建序列化器，使用序列化器然后序列化Task
         val ser = SparkEnv.get.closureSerializer.newInstance()
 
         /**
-          * 序列化之后的任务
-          *
+          * 任务序列化之后的数据
           */
         val serializedTask = ser.serialize(task) //TODO 序列化之后的任务
 
@@ -253,8 +267,11 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
           }
         }
         else {
+          // TODO  ExecutorData 里面有Executor的ActorRef
           val executorData = executorDataMap(task.executorId)
           executorData.freeCores -= scheduler.CPUS_PER_TASK
+          //TODO DriverActor拿到executorActor的ref给其发消息，给Executor(其实此处是给CoarseGrainedExecutorBackend)发消息启动Task
+          //TODO CoarseGrainedExecutorBackend 是Executor的线程名字，Executor运行在CoarseGrainedExecutorBackend线程中
           executorData.executorActor ! LaunchTask(new SerializableBuffer(serializedTask))
         }
       }
@@ -334,6 +351,11 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
     }
   }
 
+  /**
+    * 向driverActor发送消息<br>
+    * ReviveOffers 为 Driver内部自己使用的消息（Internal messages in driver）<br>
+    *调用makeOffers向Executor提交Task
+    */
   override def reviveOffers() {
     driverActor ! ReviveOffers
   }

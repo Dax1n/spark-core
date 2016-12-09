@@ -172,11 +172,13 @@ private[spark] object Task {
     * Deserialize the list of dependencies in a task serialized with serializeWithDependencies,
     * and return the task itself as a serialized ByteBuffer. The caller can then update its
     * ClassLoaders and deserialize the task.
+    * <br><br>反序列化依赖<br><br>返回(taskFiles, taskJars, subBuffer)三元组<br><br>
+    * 返回值：  (taskFiles, taskJars, taskBytes) :(HashMap[String, Long], HashMap[String, Long], ByteBuffer)<br>
+    *   HashMap中key为文件名字，value为时间戳，表示jar或者文件的版本
     *
     * @return (taskFiles, taskJars, taskBytes)
     */
-  def deserializeWithDependencies(serializedTask: ByteBuffer)
-  : (HashMap[String, Long], HashMap[String, Long], ByteBuffer) = {
+  def deserializeWithDependencies(serializedTask: ByteBuffer):(HashMap[String, Long], HashMap[String, Long], ByteBuffer) = {
 
     val in = new ByteBufferInputStream(serializedTask)
     val dataIn = new DataInputStream(in)
@@ -196,6 +198,7 @@ private[spark] object Task {
     }
 
     // Create a sub-buffer for the rest of the data, which is the serialized Task object
+    //创建新的字节缓冲区，其内容是此缓冲区内容的共享子序列。
     val subBuffer = serializedTask.slice() // ByteBufferInputStream will have read just up to task
     (taskFiles, taskJars, subBuffer)
   }

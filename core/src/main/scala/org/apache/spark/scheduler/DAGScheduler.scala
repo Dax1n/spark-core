@@ -1014,8 +1014,6 @@ private[spark] class DAGScheduler(
   }
 
 
-
-
   /**
     *
     * Called when stage's parents are available and we can now do its task.
@@ -1029,8 +1027,14 @@ private[spark] class DAGScheduler(
     // Get our pending tasks and remember them in our pendingTasks entry
     stage.pendingTasks.clear()
 
-    // First figure out the indexes of partition ids to compute.
+    /**
+      * First figure out the indexes of partition ids to compute.<br>
+      * 将要计算的分区ids
+      */
+
+
     val partitionsToCompute: Seq[Int] = {
+      //TODO 首先查找出将要计算的分区ids
       if (stage.isShuffleMap) {
         (0 until stage.numPartitions).filter(id => stage.outputLocs(id) == Nil)
       } else {
@@ -1046,6 +1050,7 @@ private[spark] class DAGScheduler(
       null
     }
 
+    //添加到runningStages
     runningStages += stage
     // SparkListenerStageSubmitted should be posted before testing whether tasks are
     // serializable. If tasks are not serializable, a SparkListenerStageCompleted event
@@ -1061,17 +1066,26 @@ private[spark] class DAGScheduler(
     // task gets a different copy of the RDD. This provides stronger isolation between tasks that
     // might modify state of objects referenced in their closures. This is necessary in Hadoop
     // where the JobConf/Configuration object is not thread-safe.
+
+    //TODO 这个是广播变量！
     var taskBinary: Broadcast[Array[Byte]] = null
     try {
       // For ShuffleMapTask, serialize and broadcast (rdd, shuffleDep).
       // For ResultTask, serialize and broadcast (rdd, func).
-      val taskBinaryBytes: Array[Byte] =
+      val taskBinaryBytes: Array[Byte] = //TODO
         if (stage.isShuffleMap) {
+          //TODO  ShuffleMapTask
           closureSerializer.serialize((stage.rdd, stage.shuffleDep.get): AnyRef).array()
         } else {
+          //TODO ResultTask结果
           closureSerializer.serialize((stage.rdd, stage.resultOfJob.get.func): AnyRef).array()
         }
+
+
+      // 把任务广播出去
       taskBinary = sc.broadcast(taskBinaryBytes)
+
+
     } catch {
       // In the case of a failure during serialization, abort the stage.
       case e: NotSerializableException =>
@@ -1084,18 +1098,30 @@ private[spark] class DAGScheduler(
         return
     }
 
+    //TaskSet
     val tasks: Seq[Task[_]] = if (stage.isShuffleMap) {
+
+      //TODO map 返回一组ShuffleMapTask
       partitionsToCompute.map { id =>
+
         val locs = getPreferredLocs(stage.rdd, id)
+        //根据id获取分区
         val part = stage.rdd.partitions(id)
+
+        //拉取上游数据
         new ShuffleMapTask(stage.id, taskBinary, part, locs)
+
       }
     } else {
+
+      //TODO ResultTask
       val job = stage.resultOfJob.get
       partitionsToCompute.map { id =>
         val p: Int = job.partitions(id)
         val part = stage.rdd.partitions(p)
         val locs = getPreferredLocs(stage.rdd, p)
+
+        //结果持久化或者打印，返回Driver等
         new ResultTask(stage.id, taskBinary, part, locs, id)
       }
     }
@@ -1104,8 +1130,11 @@ private[spark] class DAGScheduler(
       logInfo("Submitting " + tasks.size + " missing tasks from " + stage + " (" + stage.rdd + ")")
       stage.pendingTasks ++= tasks
       logDebug("New pending tasks: " + stage.pendingTasks)
-      taskScheduler.submitTasks(
-        new TaskSet(tasks.toArray, stage.id, stage.newAttemptId(), stage.jobId, properties))
+
+
+      //TODO  传说中的TaskScheduler出现了，最终是TaskScheduler提交TaskSet
+      //submitTasks实现：  org.apache.spark.scheduler.TaskSchedulerImpl.submitTasks
+      taskScheduler.submitTasks(new TaskSet(tasks.toArray, stage.id, stage.newAttemptId(), stage.jobId, properties))
       stage.latestInfo.submissionTime = Some(clock.getTimeMillis())
     } else {
       // Because we posted SparkListenerStageSubmitted earlier, we should mark
@@ -1115,8 +1144,6 @@ private[spark] class DAGScheduler(
         stage.isAvailable, stage.numAvailableOutputs, stage.numPartitions))
     }
   }
-
-
 
 
   /** Merge updates from a task to our local accumulator values */
@@ -1523,8 +1550,9 @@ private[spark] class DAGScheduler(
 
   /**
     * Gets the locality information associated with a partition of a particular RDD.
-    *
+    * 获取RDD的分区的位置信息<br>
     * This method is thread-safe and is called from both DAGScheduler and SparkContext.
+    * <br>这个方法是线程安全的，可以被 DAGScheduler 和 SparkContext调用 .<br>
     *
     * @param rdd       whose partitions are to be looked at
     * @param partition to lookup locality information for

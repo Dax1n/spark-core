@@ -38,7 +38,10 @@ import org.apache.spark.util.{Clock, SystemClock, Utils}
   * handles locality-aware scheduling for this TaskSet via delay scheduling. The main interfaces
   * to it are resourceOffer, which asks the TaskSet whether it wants to run a task on one node,
   * and statusUpdate, which tells it that one of its tasks changed state (e.g. finished).
-  *
+  * <br>
+  * 调度一个TaskSet中的所有task，TaskSetManager跟踪task的运行，如果task失败了，负责重启<br>
+  * 通过延迟调度可以处理位置感知
+  * <br>
   * THREADING: This class is designed to only be called from code with a lock on the
   * TaskScheduler (e.g. its event handlers). It should not be called from other threads.
   *
@@ -46,15 +49,6 @@ import org.apache.spark.util.{Clock, SystemClock, Utils}
   * @param taskSet         the TaskSet to manage scheduling for
   * @param maxTaskFailures if any particular task fails more than this number of times, the entire
   *                        task set will be aborted
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
-  *
   *
   */
 

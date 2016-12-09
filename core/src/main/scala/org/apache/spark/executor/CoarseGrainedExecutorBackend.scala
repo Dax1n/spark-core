@@ -54,7 +54,7 @@ import org.apache.spark.util.{ActorLogReceive, AkkaUtils, SignalLogger, Utils}
   * <br>
   * <br>CoarseGrainedExecutorBackend继承关系：
   * <br>
-  * <br>class CoarseGrainedExecutorBackend extends Actor with ActorLogReceive with ExecutorBackend with Logging
+  * <br>class CoarseGrainedExecutorBackend extends Actor with ActorLogReceive with [[ExecutorBackend]] with Logging
   *
   * @param driverUrl
   * @param executorId
@@ -72,6 +72,12 @@ private[spark] class CoarseGrainedExecutorBackend(
 
   Utils.checkHostPort(hostPort, "Expected hostport")
 
+  /**
+    * DriverActor给来的消息时，通知CoarseGrainedExecutorBackend已经完成了Executor的注册<br>
+    * 此时开始实例化Executor<br>
+    * 模式匹配：case RegisteredExecutor 中处理
+    *
+    */
   var executor: Executor = null
   var driver: ActorSelection = null
 
@@ -94,6 +100,7 @@ private[spark] class CoarseGrainedExecutorBackend(
   }
 
   override def receiveWithLogging = {
+
     //TODO DriverActor给发来的消息，告诉CoarseGrainedExecutorBackend已经完成了Executor的注册
     case RegisteredExecutor =>
       logInfo("Successfully registered with driver")
@@ -106,16 +113,20 @@ private[spark] class CoarseGrainedExecutorBackend(
       logError("Slave registration failed: " + message)
       System.exit(1)
 
+    //TODO 这是DriverActor给CoarseGrainedSchedulerBackend发来的消息，data为task的序列化数据。
     case LaunchTask(data) =>
       if (executor == null) {
         logError("Received LaunchTask command but executor was null")
         System.exit(1)
       } else {
+        //创建序列化器
         val ser = env.closureSerializer.newInstance()
+        //TODO 反序列化出任务部分信息，没有完成彻底序列化完毕 ! （另外一部分序列化数据在提交线程池时候使用TaskRunner完成的序列化）
         val taskDesc = ser.deserialize[TaskDescription](data.value)
         logInfo("Got assigned task " + taskDesc.taskId)
-        executor.launchTask(this, taskId = taskDesc.taskId, attemptNumber = taskDesc.attemptNumber,
-          taskDesc.name, taskDesc.serializedTask)
+
+        //TODO 最后一次提交了，提交给线程池了。
+        executor.launchTask(this, taskId = taskDesc.taskId, attemptNumber = taskDesc.attemptNumber, taskDesc.name, taskDesc.serializedTask)
       }
 
     case KillTask(taskId, _, interruptThread) =>
@@ -173,7 +184,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
 
       // Bootstrap（引导程序，辅助程序；） to fetch the driver's Spark properties.
       //引导获取spark driver的配置信息
-      val executorConf = new SparkConf//完成默认的spark系统配置加载
+      val executorConf = new SparkConf //完成默认的spark系统配置加载
 
       val port = executorConf.getInt("spark.executor.port", 0)
 
@@ -219,7 +230,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       }
       env.actorSystem.awaitTermination()
     }
-  }//run结束
+  } //run结束
 
   /**
     *

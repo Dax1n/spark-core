@@ -86,10 +86,12 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
 
   /**
     * This HashMap has different behavior for the driver and the executors.
-    *
+    * <br>这个HashMap在driver或者executor端有不同的行为<br>
     * On the driver, it serves as the source of map outputs recorded from ShuffleMapTasks.
-    * On the executors, it simply serves as a cache, in which a miss triggers a fetch from the
-    * driver's corresponding HashMap.
+    * <br>在驱动一端作用是作为ShuffleMapTask输出数据的记录<br>
+    * On the executors, it simply serves as a cache, in which a miss triggers a fetch from the driver's corresponding HashMap.<br>
+    * 在executor一端，作为一个缓存使用，触发executor拉取数据<br>
+    *<br>
     *
     * Note: because mapStatuses is accessed concurrently, subclasses should make sure it's a
     * thread-safe map.
@@ -198,9 +200,10 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
   }
 
   /**
-    * Called from executors to update the epoch number, potentially clearing old outputs
+    * Called from executors to update the epoch number（时间日期的意思）, potentially clearing old outputs
     * because of a fetch failure. Each executor task calls this with the latest epoch
     * number on the driver at the time it was created.
+    * <br>由于拉取失败原因，updateEpoch被调用清除输出
     */
   def updateEpoch(newEpoch: Long) {
     epochLock.synchronized {

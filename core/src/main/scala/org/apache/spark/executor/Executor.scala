@@ -44,7 +44,7 @@ SparkUncaughtExceptionHandler, AkkaUtils, Utils}
   * Executor可以备用在Mesos, YARN, 和 standalone 调度器上，<br>
   * 在粗粒度的模式下，有现存的actor system
   *
-  * <br><br>Executor运行在CoarseGrainedExecutorBackend中
+  * <br><br>Executor运行在CoarseGrainedExecutorBackend中，CoarseGrainedExecutorBackend是Executor运行所在线程的线程名字
   * <br><br>在主构造器中完成线程池创建
   *
   */
@@ -57,9 +57,18 @@ private[spark] class Executor(
 
   logInfo(s"Starting executor ID $executorId on host $executorHostname")
 
-  // Application dependencies (added through SparkContext) that we've fetched so far on this node.
-  // Each map holds the master's timestamp for the version of that file or JAR we got.
+  /**
+    * Application dependencies (added through SparkContext) that we've fetched so far on this node.<br>
+    * Each map holds the master's timestamp for the version of that file or JAR we got.<br>
+    * 译文<br>
+    * 通过SparkContext添加的app依赖我们可以在此节点上获取<br>
+    * 每一个map的key为文件或者jar名字，value为时间戳，表示版本<br><br>
+    */
   private val currentFiles: HashMap[String, Long] = new HashMap[String, Long]()
+
+  /**
+    *key为jar名字，value为时间戳，表示jar版本
+    */
   private val currentJars: HashMap[String, Long] = new HashMap[String, Long]()
 
   private val EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new Array[Byte](0))
@@ -87,7 +96,7 @@ private[spark] class Executor(
   /**
     * 创建worker线程池，threadPool为Executor的线程池，以后执行task
     */
-//  TODO 创建worker线程池
+  //  TODO 创建worker线程池
   val threadPool = Utils.newDaemonCachedThreadPool("Executor task launch worker")
 
   val executorSource = new ExecutorSource(this, executorId)
@@ -122,7 +131,7 @@ private[spark] class Executor(
   // Limit of bytes for total size of results (default is 1GB)
   private val maxResultSize = Utils.getMaxResultSize(conf)
 
-  // Maintains the list of running tasks.
+
   /**
     * Maintains the list of running tasks.<br>保存正在运行的task
     */
@@ -132,7 +141,8 @@ private[spark] class Executor(
   startDriverHeartbeater()
 
   /**
-    * Executor中启动Task任务
+    *
+    * 彻底序列化Task， <br>提交给Executor的线程池
     *
     * @param context
     * @param taskId
@@ -174,13 +184,15 @@ private[spark] class Executor(
     * TaskRunner extends Runnable
     * <br>实现了Runnable接口，以后提交给线程池运行。（Task运行器）
     * <br>
+    *
     * @param execBackend
     * @param taskId
     * @param attemptNumber
     * @param taskName
     * @param serializedTask
     */
-  class TaskRunner(execBackend: ExecutorBackend, val taskId: Long, val attemptNumber: Int, taskName: String, serializedTask: ByteBuffer) extends Runnable {
+  class TaskRunner(execBackend: ExecutorBackend, val taskId: Long, val attemptNumber: Int,
+                   taskName: String, serializedTask: ByteBuffer) extends Runnable {
 
     @volatile private var killed = false
     @volatile var task: Task[Any] = _
@@ -195,10 +207,16 @@ private[spark] class Executor(
       }
     }
 
+    /**
+      * TaskRunner的Runable中的run<br>这个run方法被线程池调用
+      */
     override def run() {
       val deserializeStartTime = System.currentTimeMillis()
+
       Thread.currentThread.setContextClassLoader(replClassLoader)
+      //序列化器
       val ser = env.closureSerializer.newInstance()
+
       logInfo(s"Running $taskName (TID $taskId)")
       execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
       var taskStart: Long = 0
@@ -206,7 +224,9 @@ private[spark] class Executor(
 
       try {
         val (taskFiles, taskJars, taskBytes) = Task.deserializeWithDependencies(serializedTask)
+
         updateDependencies(taskFiles, taskJars)
+        //真正序列化出来任务了。
         task = ser.deserialize[Task[Any]](taskBytes, Thread.currentThread.getContextClassLoader)
 
         // If this task has been killed before we deserialized it, let's quit now. Otherwise,
@@ -221,10 +241,12 @@ private[spark] class Executor(
 
         attemptedTask = Some(task)
         logDebug("Task " + taskId + "'s epoch is " + task.epoch)
+
         env.mapOutputTracker.updateEpoch(task.epoch)
 
         // Run the actual task and measure its runtime.
         taskStart = System.currentTimeMillis()
+        //TODO task是反序列化出来的task
         val value = task.run(taskAttemptId = taskId, attemptNumber = attemptNumber)
         val taskFinish = System.currentTimeMillis()
 
@@ -375,9 +397,15 @@ private[spark] class Executor(
 
   /**
     * Download any missing dependencies if we receive a new set of files and JARs from the
-    * SparkContext. Also adds any new JARs we fetched to the class loader.
+    * SparkContext. Also adds any new JARs we fetched to the class loader.<br><br>
+    * 如果收到SparkContext的新文件集合或者Jars集合的话，下载需要的依赖。<br>与此同时添加Jars到类加载器中<br>
+    * <br>
+    *
+    * @param newFiles
+    * @param newJars
     */
   private def updateDependencies(newFiles: HashMap[String, Long], newJars: HashMap[String, Long]) {
+
     lazy val hadoopConf = SparkHadoopUtil.get.newConfiguration(conf)
     synchronized {
       // Fetch missing dependencies
@@ -385,9 +413,11 @@ private[spark] class Executor(
         logInfo("Fetching " + name + " with timestamp " + timestamp)
         // Fetch file with useCache mode, close cache for local mode.
         Utils.fetchFile(name, new File(SparkFiles.getRootDirectory), conf,
-          env.securityManager, hadoopConf, timestamp, useCache = !isLocal)
+env.securityManager, hadoopConf, timestamp, useCache = !isLocal)
         currentFiles(name) = timestamp
       }
+
+
       for ((name, timestamp) <- newJars) {
         val localName = name.split("/").last
         val currentTimeStamp = currentJars.get(name)
@@ -408,7 +438,7 @@ private[spark] class Executor(
         }
       }
     }
-  }
+  } //updateDependencies定义结束
 
   def startDriverHeartbeater() {
     val interval = conf.getInt("spark.executor.heartbeatInterval", 10000)
