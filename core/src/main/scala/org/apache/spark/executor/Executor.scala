@@ -137,7 +137,7 @@ private[spark] class Executor(
     */
   private val runningTasks = new ConcurrentHashMap[Long, TaskRunner]
 
-  //TODO Executor向DriverActor发送信条
+  //TODO 主构造器完成启动，Executor向DriverActor发送消息
   startDriverHeartbeater()
 
   /**
@@ -440,11 +440,15 @@ env.securityManager, hadoopConf, timestamp, useCache = !isLocal)
     }
   } //updateDependencies定义结束
 
+  /**
+    * 给Driver发消息,看函数中的TODO
+    */
   def startDriverHeartbeater() {
     val interval = conf.getInt("spark.executor.heartbeatInterval", 10000)
     val timeout = AkkaUtils.lookupTimeout(conf)
     val retryAttempts = AkkaUtils.numRetries(conf)
     val retryIntervalMs = AkkaUtils.retryWaitMs(conf)
+    //TODO 获取driverRef
     val heartbeatReceiverRef = AkkaUtils.makeDriverRef("HeartbeatReceiver", conf, env.actorSystem)
 
     val t = new Thread() {
@@ -477,11 +481,13 @@ env.securityManager, hadoopConf, timestamp, useCache = !isLocal)
             }
           }
 
+          //TODO message为发给Driver的消息
           val message = Heartbeat(executorId, tasksMetrics.toArray, env.blockManager.blockManagerId)
           try {
+            //TODO HeartbeatReceiver中回应的消息
             val response = AkkaUtils.askWithReply[HeartbeatResponse](message, heartbeatReceiverRef,
               retryAttempts, retryIntervalMs, timeout)
-            if (response.reregisterBlockManager) {
+            if (response.reregisterBlockManager) { //BlockManager需要重新注册
               logWarning("Told to re-register on heartbeat")
               env.blockManager.reregister()
             }
@@ -489,7 +495,7 @@ env.securityManager, hadoopConf, timestamp, useCache = !isLocal)
             case NonFatal(t) => logWarning("Issue communicating with driver in heartbeater", t)
           }
 
-          Thread.sleep(interval)
+          Thread.sleep(interval)//睡眠
         }
       }
     }

@@ -166,17 +166,10 @@ private[spark] class CoarseGrainedExecutorBackend(
 
 private[spark] object CoarseGrainedExecutorBackend extends Logging {
 
-  private def run(
-                   driverUrl: String,
-                   executorId: String,
-                   hostname: String,
-                   cores: Int,
-                   appId: String,
-                   workerUrl: Option[String],
-                   userClassPath: Seq[URL]) {
+  private def run(driverUrl: String, executorId: String, hostname: String,
+                   cores: Int, appId: String, workerUrl: Option[String], userClassPath: Seq[URL]) {
 
     SignalLogger.register(log)
-
     //
     SparkHadoopUtil.get.runAsSparkUser { () =>
       // Debug code
@@ -189,6 +182,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       val port = executorConf.getInt("spark.executor.port", 0)
 
       //TODO 在Executor中创建actorSystem
+      // TODO fetcher是一个actorSystem
       val (fetcher, _) = AkkaUtils.createActorSystem("driverPropsFetcher", hostname, port, executorConf, new SecurityManager(executorConf))
 
 
@@ -200,7 +194,7 @@ private[spark] object CoarseGrainedExecutorBackend extends Logging {
       val fut = Patterns.ask(driver, RetrieveSparkProps, timeout)
       val props = Await.result(fut, timeout).asInstanceOf[Seq[(String, String)]] ++
         Seq[(String, String)](("spark.app.id", appId))
-      fetcher.shutdown()
+      fetcher.shutdown()//TODO 等待上面运行完毕，关闭fetcher。类似于线程池的shutdown方法
 
       // Create SparkEnv using properties we fetched from the driver.
       val driverConf = new SparkConf()

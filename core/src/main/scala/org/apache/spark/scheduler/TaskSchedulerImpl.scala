@@ -180,12 +180,10 @@ private[spark] class TaskSchedulerImpl(
   def newTaskId(): Long = nextTaskId.getAndIncrement()
 
   /**
-    *
     * <br> 完成driverActor和clientActor的创建
-    *
     */
   override def start() {
-    //SparkDeploySchedulerBackend
+    //TODO SparkDeploySchedulerBackend在此处启动
     backend.start() //org.apache.spark.scheduler.cluster.SparkDeploySchedulerBackend.start
 
     //是否是任务推测执行，默认为false

@@ -43,37 +43,41 @@ import org.apache.spark.shuffle.hash.HashShuffleManager
 import org.apache.spark.util._
 
 private[spark] sealed trait BlockValues
+
 private[spark] case class ByteBufferValues(buffer: ByteBuffer) extends BlockValues
+
 private[spark] case class IteratorValues(iterator: Iterator[Any]) extends BlockValues
+
 private[spark] case class ArrayValues(buffer: Array[Any]) extends BlockValues
 
 /* Class for returning a fetched block and associated metrics. */
 private[spark] class BlockResult(
-    val data: Iterator[Any],
-    readMethod: DataReadMethod.Value,
-    bytes: Long) {
+                                  val data: Iterator[Any],
+                                  readMethod: DataReadMethod.Value,
+                                  bytes: Long) {
   val inputMetrics = new InputMetrics(readMethod)
   inputMetrics.incBytesRead(bytes)
 }
 
 /**
- * Manager running on every node (driver and executors) which provides interfaces for putting and
- * retrieving blocks both locally and remotely into various stores (memory, disk, and off-heap).
- *
- * Note that #initialize() must be called before the BlockManager is usable.
- */
+  * Manager running on every node (driver and executors) which provides interfaces for putting and
+  * retrieving blocks both locally and remotely into various stores (memory, disk, and off-heap).
+  * <br>BlockManager运行在driver和executor节点上，提供在本地或者远程的内存中、磁盘、堆外 等的存放和检索的功能<br>
+  * 在使用BlockManager之前必须调用initialize<br>
+  * Note that #initialize() must be called before the BlockManager is usable.
+  */
 private[spark] class BlockManager(
-    executorId: String,
-    actorSystem: ActorSystem,
-    val master: BlockManagerMaster,
-    defaultSerializer: Serializer,
-    maxMemory: Long,
-    val conf: SparkConf,
-    mapOutputTracker: MapOutputTracker,
-    shuffleManager: ShuffleManager,
-    blockTransferService: BlockTransferService,
-    securityManager: SecurityManager,
-    numUsableCores: Int)
+                                   executorId: String,
+                                   actorSystem: ActorSystem,
+                                   val master: BlockManagerMaster,
+                                   defaultSerializer: Serializer,
+                                   maxMemory: Long,
+                                   val conf: SparkConf,
+                                   mapOutputTracker: MapOutputTracker,
+                                   shuffleManager: ShuffleManager,
+                                   blockTransferService: BlockTransferService,
+                                   securityManager: SecurityManager,
+                                   numUsableCores: Int)
   extends BlockDataManager with Logging {
 
   val diskBlockManager = new DiskBlockManager(this, conf)
@@ -88,7 +92,7 @@ private[spark] class BlockManager(
     val storeDir = conf.get("spark.tachyonStore.baseDir", "/tmp_spark_tachyon")
     val appFolderName = conf.get("spark.tachyonStore.folderName")
     val tachyonStorePath = s"$storeDir/$appFolderName/${this.executorId}"
-    val tachyonMaster = conf.get("spark.tachyonStore.url",  "tachyon://localhost:19998")
+    val tachyonMaster = conf.get("spark.tachyonStore.url", "tachyon://localhost:19998")
     val tachyonBlockManager =
       new TachyonBlockManager(this, tachyonStorePath, tachyonMaster)
     tachyonInitialized = true
@@ -101,12 +105,12 @@ private[spark] class BlockManager(
   // Port used by the external shuffle service. In Yarn mode, this may be already be
   // set through the Hadoop configuration as the server is launched in the Yarn NM.
   private val externalShuffleServicePort =
-    Utils.getSparkOrYarnConfig(conf, "spark.shuffle.service.port", "7337").toInt
+  Utils.getSparkOrYarnConfig(conf, "spark.shuffle.service.port", "7337").toInt
 
   // Check that we're not using external shuffle service with consolidated shuffle files.
   if (externalShuffleServiceEnabled
-      && conf.getBoolean("spark.shuffle.consolidateFiles", false)
-      && shuffleManager.isInstanceOf[HashShuffleManager]) {
+    && conf.getBoolean("spark.shuffle.consolidateFiles", false)
+    && shuffleManager.isInstanceOf[HashShuffleManager]) {
     throw new UnsupportedOperationException("Cannot use external shuffle service with consolidated"
       + " shuffle files in hash-based shuffle. Please disable spark.shuffle.consolidateFiles or "
       + " switch to sort-based shuffle.")
@@ -163,32 +167,32 @@ private[spark] class BlockManager(
   private lazy val compressionCodec: CompressionCodec = CompressionCodec.createCodec(conf)
 
   /**
-   * Construct a BlockManager with a memory limit set based on system properties.
-   */
+    * Construct a BlockManager with a memory limit set based on system properties.
+    */
   def this(
-      execId: String,
-      actorSystem: ActorSystem,
-      master: BlockManagerMaster,
-      serializer: Serializer,
-      conf: SparkConf,
-      mapOutputTracker: MapOutputTracker,
-      shuffleManager: ShuffleManager,
-      blockTransferService: BlockTransferService,
-      securityManager: SecurityManager,
-      numUsableCores: Int) = {
+            execId: String,
+            actorSystem: ActorSystem,
+            master: BlockManagerMaster,
+            serializer: Serializer,
+            conf: SparkConf,
+            mapOutputTracker: MapOutputTracker,
+            shuffleManager: ShuffleManager,
+            blockTransferService: BlockTransferService,
+            securityManager: SecurityManager,
+            numUsableCores: Int) = {
     this(execId, actorSystem, master, serializer, BlockManager.getMaxMemory(conf),
       conf, mapOutputTracker, shuffleManager, blockTransferService, securityManager, numUsableCores)
   }
 
   /**
-   * Initializes the BlockManager with the given appId. This is not performed in the constructor as
-   * the appId may not be known at BlockManager instantiation time (in particular for the driver,
-   * where it is only learned after registration with the TaskScheduler).
-   *
-   * This method initializes the BlockTransferService and ShuffleClient, registers with the
-   * BlockManagerMaster, starts the BlockManagerWorker actor, and registers with a local shuffle
-   * service if configured.
-   */
+    * Initializes the BlockManager with the given appId. This is not performed in the constructor as
+    * the appId may not be known at BlockManager instantiation time (in particular for the driver,
+    * where it is only learned after registration with the TaskScheduler).
+    *
+    * This method initializes the BlockTransferService and ShuffleClient, registers with the
+    * BlockManagerMaster, starts the BlockManagerWorker actor, and registers with a local shuffle
+    * service if configured.
+    */
   def initialize(appId: String): Unit = {
     blockTransferService.init(this)
     shuffleClient.init(appId)
@@ -236,15 +240,15 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Report all blocks to the BlockManager again. This may be necessary if we are dropped
-   * by the BlockManager and come back or if we become capable of recovering blocks on disk after
-   * an executor crash.
-   *
-   * This function deliberately fails silently if the master returns false (indicating that
-   * the slave needs to re-register). The error condition will be detected again by the next
-   * heart beat attempt or new block registration and another try to re-register all blocks
-   * will be made then.
-   */
+    * Report all blocks to the BlockManager again. This may be necessary if we are dropped
+    * by the BlockManager and come back or if we become capable of recovering blocks on disk after
+    * an executor crash.
+    *
+    * This function deliberately fails silently if the master returns false (indicating that
+    * the slave needs to re-register). The error condition will be detected again by the next
+    * heart beat attempt or new block registration and another try to re-register all blocks
+    * will be made then.
+    */
   private def reportAllBlocks(): Unit = {
     logInfo(s"Reporting ${blockInfo.size} blocks to the master.")
     for ((blockId, info) <- blockInfo) {
@@ -257,11 +261,11 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Re-register with the master and report all blocks to it. This will be called by the heart beat
-   * thread if our heartbeat to the block manager indicates that we were not registered.
-   *
-   * Note that this method must be called without any BlockInfo locks held.
-   */
+    * Re-register with the master and report all blocks to it. This will be called by the heart beat
+    * thread if our heartbeat to the block manager indicates that we were not registered.
+    *
+    * Note that this method must be called without any BlockInfo locks held.
+    */
   def reregister(): Unit = {
     // TODO: We might need to rate limit re-registering.
     logInfo("BlockManager re-registering with master")
@@ -270,8 +274,8 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Re-register with the master sometime soon.
-   */
+    * Re-register with the master sometime soon.
+    */
   private def asyncReregister(): Unit = {
     asyncReregisterLock.synchronized {
       if (asyncReregisterTask == null) {
@@ -286,8 +290,8 @@ private[spark] class BlockManager(
   }
 
   /**
-   * For testing. Wait for any pending asynchronous re-registration; otherwise, do nothing.
-   */
+    * For testing. Wait for any pending asynchronous re-registration; otherwise, do nothing.
+    */
   def waitForAsyncReregister(): Unit = {
     val task = asyncReregisterTask
     if (task != null) {
@@ -296,9 +300,9 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Interface to get local block data. Throws an exception if the block cannot be found or
-   * cannot be read successfully.
-   */
+    * Interface to get local block data. Throws an exception if the block cannot be found or
+    * cannot be read successfully.
+    */
   override def getBlockData(blockId: BlockId): ManagedBuffer = {
     if (blockId.isShuffle) {
       shuffleManager.shuffleBlockManager.getBlockData(blockId.asInstanceOf[ShuffleBlockId])
@@ -315,16 +319,16 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Put the block locally, using the given storage level.
-   */
+    * Put the block locally, using the given storage level.
+    */
   override def putBlockData(blockId: BlockId, data: ManagedBuffer, level: StorageLevel): Unit = {
     putBytes(blockId, data.nioByteBuffer(), level)
   }
 
   /**
-   * Get the BlockStatus for the block identified by the given ID, if it exists.
-   * NOTE: This is mainly for testing, and it doesn't fetch information from Tachyon.
-   */
+    * Get the BlockStatus for the block identified by the given ID, if it exists.
+    * NOTE: This is mainly for testing, and it doesn't fetch information from Tachyon.
+    */
   def getStatus(blockId: BlockId): Option[BlockStatus] = {
     blockInfo.get(blockId).map { info =>
       val memSize = if (memoryStore.contains(blockId)) memoryStore.getSize(blockId) else 0L
@@ -335,28 +339,28 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Get the ids of existing blocks that match the given filter. Note that this will
-   * query the blocks stored in the disk block manager (that the block manager
-   * may not know of).
-   */
+    * Get the ids of existing blocks that match the given filter. Note that this will
+    * query the blocks stored in the disk block manager (that the block manager
+    * may not know of).
+    */
   def getMatchingBlockIds(filter: BlockId => Boolean): Seq[BlockId] = {
     (blockInfo.keys ++ diskBlockManager.getAllBlocks()).filter(filter).toSeq
   }
 
   /**
-   * Tell the master about the current storage status of a block. This will send a block update
-   * message reflecting the current status, *not* the desired storage level in its block info.
-   * For example, a block with MEMORY_AND_DISK set might have fallen out to be only on disk.
-   *
-   * droppedMemorySize exists to account for when the block is dropped from memory to disk (so
-   * it is still valid). This ensures that update in master will compensate for the increase in
-   * memory on slave.
-   */
+    * Tell the master about the current storage status of a block. This will send a block update
+    * message reflecting the current status, *not* the desired storage level in its block info.
+    * For example, a block with MEMORY_AND_DISK set might have fallen out to be only on disk.
+    *
+    * droppedMemorySize exists to account for when the block is dropped from memory to disk (so
+    * it is still valid). This ensures that update in master will compensate for the increase in
+    * memory on slave.
+    */
   private def reportBlockStatus(
-      blockId: BlockId,
-      info: BlockInfo,
-      status: BlockStatus,
-      droppedMemorySize: Long = 0L): Unit = {
+                                 blockId: BlockId,
+                                 info: BlockInfo,
+                                 status: BlockStatus,
+                                 droppedMemorySize: Long = 0L): Unit = {
     val needReregister = !tryToReportBlockStatus(blockId, info, status, droppedMemorySize)
     if (needReregister) {
       logInfo(s"Got told to re-register updating block $blockId")
@@ -367,15 +371,15 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Actually send a UpdateBlockInfo message. Returns the master's response,
-   * which will be true if the block was successfully recorded and false if
-   * the slave needs to re-register.
-   */
+    * Actually send a UpdateBlockInfo message. Returns the master's response,
+    * which will be true if the block was successfully recorded and false if
+    * the slave needs to re-register.
+    */
   private def tryToReportBlockStatus(
-      blockId: BlockId,
-      info: BlockInfo,
-      status: BlockStatus,
-      droppedMemorySize: Long = 0L): Boolean = {
+                                      blockId: BlockId,
+                                      info: BlockInfo,
+                                      status: BlockStatus,
+                                      droppedMemorySize: Long = 0L): Boolean = {
     if (info.tellMaster) {
       val storageLevel = status.storageLevel
       val inMemSize = Math.max(status.memSize, droppedMemorySize)
@@ -389,10 +393,10 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Return the updated storage status of the block with the given ID. More specifically, if
-   * the block is dropped from memory and possibly added to disk, return the new storage level
-   * and the updated in-memory and on-disk sizes.
-   */
+    * Return the updated storage status of the block with the given ID. More specifically, if
+    * the block is dropped from memory and possibly added to disk, return the new storage level
+    * and the updated in-memory and on-disk sizes.
+    */
   private def getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus = {
     info.synchronized {
       info.level match {
@@ -414,8 +418,8 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Get locations of an array of blocks.
-   */
+    * Get locations of an array of blocks.
+    */
   private def getLocationBlockIds(blockIds: Array[BlockId]): Array[Seq[BlockManagerId]] = {
     val startTimeMs = System.currentTimeMillis
     val locations = master.getLocations(blockIds).toArray
@@ -424,16 +428,16 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Get block from local block manager.
-   */
+    * Get block from local block manager.
+    */
   def getLocal(blockId: BlockId): Option[BlockResult] = {
     logDebug(s"Getting local block $blockId")
     doGetLocal(blockId, asBlockResult = true).asInstanceOf[Option[BlockResult]]
   }
 
   /**
-   * Get block from the local block manager as serialized bytes.
-   */
+    * Get block from the local block manager as serialized bytes.
+    */
   def getLocalBytes(blockId: BlockId): Option[ByteBuffer] = {
     logDebug(s"Getting local block $blockId as bytes")
     // As an optimization for map output fetches, if the block is for a shuffle, return it
@@ -571,16 +575,16 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Get block from remote block managers.
-   */
+    * Get block from remote block managers.
+    */
   def getRemote(blockId: BlockId): Option[BlockResult] = {
     logDebug(s"Getting remote block $blockId")
     doGetRemote(blockId, asBlockResult = true).asInstanceOf[Option[BlockResult]]
   }
 
   /**
-   * Get block from remote block managers as serialized bytes.
-   */
+    * Get block from remote block managers as serialized bytes.
+    */
   def getRemoteBytes(blockId: BlockId): Option[ByteBuffer] = {
     logDebug(s"Getting remote block $blockId as bytes")
     doGetRemote(blockId, asBlockResult = false).asInstanceOf[Option[ByteBuffer]]
@@ -611,8 +615,8 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Get a block from the block manager (either local or remote).
-   */
+    * Get a block from the block manager (either local or remote).
+    */
   def get(blockId: BlockId): Option[BlockResult] = {
     val local = getLocal(blockId)
     if (local.isDefined) {
@@ -628,26 +632,26 @@ private[spark] class BlockManager(
   }
 
   def putIterator(
-      blockId: BlockId,
-      values: Iterator[Any],
-      level: StorageLevel,
-      tellMaster: Boolean = true,
-      effectiveStorageLevel: Option[StorageLevel] = None): Seq[(BlockId, BlockStatus)] = {
+                   blockId: BlockId,
+                   values: Iterator[Any],
+                   level: StorageLevel,
+                   tellMaster: Boolean = true,
+                   effectiveStorageLevel: Option[StorageLevel] = None): Seq[(BlockId, BlockStatus)] = {
     require(values != null, "Values is null")
     doPut(blockId, IteratorValues(values), level, tellMaster, effectiveStorageLevel)
   }
 
   /**
-   * A short circuited method to get a block writer that can write data directly to disk.
-   * The Block will be appended to the File specified by filename. Callers should handle error
-   * cases.
-   */
+    * A short circuited method to get a block writer that can write data directly to disk.
+    * The Block will be appended to the File specified by filename. Callers should handle error
+    * cases.
+    */
   def getDiskWriter(
-      blockId: BlockId,
-      file: File,
-      serializer: Serializer,
-      bufferSize: Int,
-      writeMetrics: ShuffleWriteMetrics): BlockObjectWriter = {
+                     blockId: BlockId,
+                     file: File,
+                     serializer: Serializer,
+                     bufferSize: Int,
+                     writeMetrics: ShuffleWriteMetrics): BlockObjectWriter = {
     val compressStream: OutputStream => OutputStream = wrapForCompression(blockId, _)
     val syncWrites = conf.getBoolean("spark.shuffle.sync", false)
     new DiskBlockObjectWriter(blockId, file, serializer, bufferSize, compressStream, syncWrites,
@@ -655,48 +659,48 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Put a new block of values to the block manager.
-   * Return a list of blocks updated as a result of this put.
-   */
+    * Put a new block of values to the block manager.
+    * Return a list of blocks updated as a result of this put.
+    */
   def putArray(
-      blockId: BlockId,
-      values: Array[Any],
-      level: StorageLevel,
-      tellMaster: Boolean = true,
-      effectiveStorageLevel: Option[StorageLevel] = None): Seq[(BlockId, BlockStatus)] = {
+                blockId: BlockId,
+                values: Array[Any],
+                level: StorageLevel,
+                tellMaster: Boolean = true,
+                effectiveStorageLevel: Option[StorageLevel] = None): Seq[(BlockId, BlockStatus)] = {
     require(values != null, "Values is null")
     doPut(blockId, ArrayValues(values), level, tellMaster, effectiveStorageLevel)
   }
 
   /**
-   * Put a new block of serialized bytes to the block manager.
-   * Return a list of blocks updated as a result of this put.
-   */
+    * Put a new block of serialized bytes to the block manager.
+    * Return a list of blocks updated as a result of this put.
+    */
   def putBytes(
-      blockId: BlockId,
-      bytes: ByteBuffer,
-      level: StorageLevel,
-      tellMaster: Boolean = true,
-      effectiveStorageLevel: Option[StorageLevel] = None): Seq[(BlockId, BlockStatus)] = {
+                blockId: BlockId,
+                bytes: ByteBuffer,
+                level: StorageLevel,
+                tellMaster: Boolean = true,
+                effectiveStorageLevel: Option[StorageLevel] = None): Seq[(BlockId, BlockStatus)] = {
     require(bytes != null, "Bytes is null")
     doPut(blockId, ByteBufferValues(bytes), level, tellMaster, effectiveStorageLevel)
   }
 
   /**
-   * Put the given block according to the given level in one of the block stores, replicating
-   * the values if necessary.
-   *
-   * The effective storage level refers to the level according to which the block will actually be
-   * handled. This allows the caller to specify an alternate behavior of doPut while preserving
-   * the original level specified by the user.
-   */
+    * Put the given block according to the given level in one of the block stores, replicating
+    * the values if necessary.
+    *
+    * The effective storage level refers to the level according to which the block will actually be
+    * handled. This allows the caller to specify an alternate behavior of doPut while preserving
+    * the original level specified by the user.
+    */
   private def doPut(
-      blockId: BlockId,
-      data: BlockValues,
-      level: StorageLevel,
-      tellMaster: Boolean = true,
-      effectiveStorageLevel: Option[StorageLevel] = None)
-    : Seq[(BlockId, BlockStatus)] = {
+                     blockId: BlockId,
+                     data: BlockValues,
+                     level: StorageLevel,
+                     tellMaster: Boolean = true,
+                     effectiveStorageLevel: Option[StorageLevel] = None)
+  : Seq[(BlockId, BlockStatus)] = {
 
     require(blockId != null, "BlockId is null")
     require(level != null && level.isValid, "StorageLevel is null or invalid")
@@ -750,7 +754,9 @@ private[spark] class BlockManager(
       case b: ByteBufferValues if putLevel.replication > 1 =>
         // Duplicate doesn't copy the bytes, but just creates a wrapper
         val bufferView = b.buffer.duplicate()
-        Future { replicate(blockId, bufferView, putLevel) }
+        Future {
+          replicate(blockId, bufferView, putLevel)
+        }
       case _ => null
     }
 
@@ -792,14 +798,16 @@ private[spark] class BlockManager(
         }
         size = result.size
         result.data match {
-          case Left (newIterator) if putLevel.useMemory => valuesAfterPut = newIterator
-          case Right (newBytes) => bytesAfterPut = newBytes
+          case Left(newIterator) if putLevel.useMemory => valuesAfterPut = newIterator
+          case Right(newBytes) => bytesAfterPut = newBytes
           case _ =>
         }
 
         // Keep track of which blocks are dropped from memory
         if (putLevel.useMemory) {
-          result.droppedBlocks.foreach { updatedBlocks += _ }
+          result.droppedBlocks.foreach {
+            updatedBlocks += _
+          }
         }
 
         val putBlockStatus = getCurrentBlockStatus(blockId, putBlockInfo)
@@ -865,8 +873,8 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Get peer block managers in the system.
-   */
+    * Get peer block managers in the system.
+    */
   private def getPeers(forceFetch: Boolean): Seq[BlockManagerId] = {
     peerFetchLock.synchronized {
       val cachedPeersTtl = conf.getInt("spark.storage.cachedPeersTtl", 60 * 1000) // milliseconds
@@ -881,9 +889,9 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Replicate block to another node. Not that this is a blocking call that returns after
-   * the block has been replicated.
-   */
+    * Replicate block to another node. Not that this is a blocking call that returns after
+    * the block has been replicated.
+    */
   private def replicate(blockId: BlockId, data: ByteBuffer, level: StorageLevel): Unit = {
     val maxReplicationFailures = conf.getInt("spark.storage.maxReplicationFailures", 1)
     val numPeersToReplicateTo = level.replication - 1
@@ -948,7 +956,7 @@ private[spark] class BlockManager(
             peersForReplication -= peer
             replicationFailed = false
             if (peersReplicatedTo.size == numPeersToReplicateTo) {
-              done = true  // specified number of peers have been replicated to
+              done = true // specified number of peers have been replicated to
             }
           } catch {
             case e: Exception =>
@@ -956,7 +964,8 @@ private[spark] class BlockManager(
               failures += 1
               replicationFailed = true
               peersFailedToReplicateTo += peer
-              if (failures > maxReplicationFailures) { // too many failures in replcating to peers
+              if (failures > maxReplicationFailures) {
+                // too many failures in replcating to peers
                 done = true
               }
           }
@@ -974,32 +983,32 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Read a block consisting of a single object.
-   */
+    * Read a block consisting of a single object.
+    */
   def getSingle(blockId: BlockId): Option[Any] = {
     get(blockId).map(_.data.next())
   }
 
   /**
-   * Write a block consisting of a single object.
-   */
+    * Write a block consisting of a single object.
+    */
   def putSingle(
-      blockId: BlockId,
-      value: Any,
-      level: StorageLevel,
-      tellMaster: Boolean = true): Seq[(BlockId, BlockStatus)] = {
+                 blockId: BlockId,
+                 value: Any,
+                 level: StorageLevel,
+                 tellMaster: Boolean = true): Seq[(BlockId, BlockStatus)] = {
     putIterator(blockId, Iterator(value), level, tellMaster)
   }
 
   /**
-   * Drop a block from memory, possibly putting it on disk if applicable. Called when the memory
-   * store reaches its limit and needs to free up space.
-   *
-   * Return the block status if the given block has been updated, else None.
-   */
+    * Drop a block from memory, possibly putting it on disk if applicable. Called when the memory
+    * store reaches its limit and needs to free up space.
+    *
+    * Return the block status if the given block has been updated, else None.
+    */
   def dropFromMemory(
-      blockId: BlockId,
-      data: Either[Array[Any], ByteBuffer]): Option[BlockStatus] = {
+                      blockId: BlockId,
+                      data: Either[Array[Any], ByteBuffer]): Option[BlockStatus] = {
 
     logInfo(s"Dropping block $blockId from memory")
     val info = blockInfo.get(blockId).orNull
@@ -1034,7 +1043,7 @@ private[spark] class BlockManager(
 
         // Actually drop from memory store
         val droppedMemorySize =
-          if (memoryStore.contains(blockId)) memoryStore.getSize(blockId) else 0L
+        if (memoryStore.contains(blockId)) memoryStore.getSize(blockId) else 0L
         val blockIsRemoved = memoryStore.remove(blockId)
         if (blockIsRemoved) {
           blockIsUpdated = true
@@ -1059,9 +1068,10 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Remove all blocks belonging to the given RDD.
-   * @return The number of blocks removed.
-   */
+    * Remove all blocks belonging to the given RDD.
+    *
+    * @return The number of blocks removed.
+    */
   def removeRdd(rddId: Int): Int = {
     // TODO: Avoid a linear scan by creating another mapping of RDD.id to blocks.
     logInfo(s"Removing RDD $rddId")
@@ -1071,20 +1081,20 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Remove all blocks belonging to the given broadcast.
-   */
+    * Remove all blocks belonging to the given broadcast.
+    */
   def removeBroadcast(broadcastId: Long, tellMaster: Boolean): Int = {
     logInfo(s"Removing broadcast $broadcastId")
     val blocksToRemove = blockInfo.keys.collect {
-      case bid @ BroadcastBlockId(`broadcastId`, _) => bid
+      case bid@BroadcastBlockId(`broadcastId`, _) => bid
     }
     blocksToRemove.foreach { blockId => removeBlock(blockId, tellMaster) }
     blocksToRemove.size
   }
 
   /**
-   * Remove a block from both memory and disk.
-   */
+    * Remove a block from both memory and disk.
+    */
   def removeBlock(blockId: BlockId, tellMaster: Boolean = true): Unit = {
     logInfo(s"Removing block $blockId")
     val info = blockInfo.get(blockId).orNull
@@ -1128,9 +1138,15 @@ private[spark] class BlockManager(
       if (time < cleanupTime && shouldDrop(id)) {
         info.synchronized {
           val level = info.level
-          if (level.useMemory) { memoryStore.remove(id) }
-          if (level.useDisk) { diskStore.remove(id) }
-          if (level.useOffHeap) { tachyonStore.remove(id) }
+          if (level.useMemory) {
+            memoryStore.remove(id)
+          }
+          if (level.useDisk) {
+            diskStore.remove(id)
+          }
+          if (level.useOffHeap) {
+            tachyonStore.remove(id)
+          }
           iterator.remove()
           logInfo(s"Dropped block $id")
         }
@@ -1152,25 +1168,25 @@ private[spark] class BlockManager(
   }
 
   /**
-   * Wrap an output stream for compression if block compression is enabled for its block type
-   */
+    * Wrap an output stream for compression if block compression is enabled for its block type
+    */
   def wrapForCompression(blockId: BlockId, s: OutputStream): OutputStream = {
     if (shouldCompress(blockId)) compressionCodec.compressedOutputStream(s) else s
   }
 
   /**
-   * Wrap an input stream for compression if block compression is enabled for its block type
-   */
+    * Wrap an input stream for compression if block compression is enabled for its block type
+    */
   def wrapForCompression(blockId: BlockId, s: InputStream): InputStream = {
     if (shouldCompress(blockId)) compressionCodec.compressedInputStream(s) else s
   }
 
   /** Serializes into a stream. */
   def dataSerializeStream(
-      blockId: BlockId,
-      outputStream: OutputStream,
-      values: Iterator[Any],
-      serializer: Serializer = defaultSerializer): Unit = {
+                           blockId: BlockId,
+                           outputStream: OutputStream,
+                           values: Iterator[Any],
+                           serializer: Serializer = defaultSerializer): Unit = {
     val byteStream = new BufferedOutputStream(outputStream)
     val ser = serializer.newInstance()
     ser.serializeStream(wrapForCompression(blockId, byteStream)).writeAll(values).close()
@@ -1178,22 +1194,22 @@ private[spark] class BlockManager(
 
   /** Serializes into a byte buffer. */
   def dataSerialize(
-      blockId: BlockId,
-      values: Iterator[Any],
-      serializer: Serializer = defaultSerializer): ByteBuffer = {
+                     blockId: BlockId,
+                     values: Iterator[Any],
+                     serializer: Serializer = defaultSerializer): ByteBuffer = {
     val byteStream = new ByteArrayOutputStream(4096)
     dataSerializeStream(blockId, byteStream, values, serializer)
     ByteBuffer.wrap(byteStream.toByteArray)
   }
 
   /**
-   * Deserializes a ByteBuffer into an iterator of values and disposes of it when the end of
-   * the iterator is reached.
-   */
+    * Deserializes a ByteBuffer into an iterator of values and disposes of it when the end of
+    * the iterator is reached.
+    */
   def dataDeserialize(
-      blockId: BlockId,
-      bytes: ByteBuffer,
-      serializer: Serializer = defaultSerializer): Iterator[Any] = {
+                       blockId: BlockId,
+                       bytes: ByteBuffer,
+                       serializer: Serializer = defaultSerializer): Iterator[Any] = {
     bytes.rewind()
     val stream = wrapForCompression(blockId, new ByteBufferInputStream(bytes, true))
     serializer.newInstance().deserializeStream(stream).asIterator
@@ -1231,11 +1247,11 @@ private[spark] object BlockManager extends Logging {
   }
 
   /**
-   * Attempt to clean up a ByteBuffer if it is memory-mapped. This uses an *unsafe* Sun API that
-   * might cause errors if one attempts to read from the unmapped buffer, but it's better than
-   * waiting for the GC to find it because that could lead to huge numbers of open files. There's
-   * unfortunately no standard API to do this.
-   */
+    * Attempt to clean up a ByteBuffer if it is memory-mapped. This uses an *unsafe* Sun API that
+    * might cause errors if one attempts to read from the unmapped buffer, but it's better than
+    * waiting for the GC to find it because that could lead to huge numbers of open files. There's
+    * unfortunately no standard API to do this.
+    */
   def dispose(buffer: ByteBuffer): Unit = {
     if (buffer != null && buffer.isInstanceOf[MappedByteBuffer]) {
       logTrace(s"Unmapping $buffer")
@@ -1246,9 +1262,9 @@ private[spark] object BlockManager extends Logging {
   }
 
   def blockIdsToBlockManagers(
-      blockIds: Array[BlockId],
-      env: SparkEnv,
-      blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[BlockManagerId]] = {
+                               blockIds: Array[BlockId],
+                               env: SparkEnv,
+                               blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[BlockManagerId]] = {
 
     // blockManagerMaster != null is used in tests
     assert(env != null || blockManagerMaster != null)
@@ -1266,16 +1282,16 @@ private[spark] object BlockManager extends Logging {
   }
 
   def blockIdsToExecutorIds(
-      blockIds: Array[BlockId],
-      env: SparkEnv,
-      blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[String]] = {
+                             blockIds: Array[BlockId],
+                             env: SparkEnv,
+                             blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[String]] = {
     blockIdsToBlockManagers(blockIds, env, blockManagerMaster).mapValues(s => s.map(_.executorId))
   }
 
   def blockIdsToHosts(
-      blockIds: Array[BlockId],
-      env: SparkEnv,
-      blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[String]] = {
+                       blockIds: Array[BlockId],
+                       env: SparkEnv,
+                       blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[String]] = {
     blockIdsToBlockManagers(blockIds, env, blockManagerMaster).mapValues(s => s.map(_.host))
   }
 }

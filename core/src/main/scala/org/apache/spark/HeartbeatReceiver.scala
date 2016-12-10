@@ -44,12 +44,12 @@ private[spark] class HeartbeatReceiver(scheduler: TaskScheduler)
   extends Actor with ActorLogReceive with Logging {
 
   /**
-    * 处理接收到的心跳
+    * 处理Executor接收到的心跳
     */
   override def receiveWithLogging = {
     case Heartbeat(executorId, taskMetrics, blockManagerId) =>
-      val response = HeartbeatResponse(
-        !scheduler.executorHeartbeatReceived(executorId, taskMetrics, blockManagerId))
+      //其中的scheduler是TaskScheduler类型
+      val response = HeartbeatResponse(!scheduler.executorHeartbeatReceived(executorId, taskMetrics, blockManagerId))
       sender ! response
   }
 }

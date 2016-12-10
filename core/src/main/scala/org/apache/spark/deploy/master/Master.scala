@@ -70,6 +70,7 @@ private[spark] class Master(
                              val conf: SparkConf)
   extends Actor with ActorLogReceive with Logging with LeaderElectable {
 
+  //TODO 使用Akka定时器
   import context.dispatcher
 
   // to use Akka's scheduler.schedule()
@@ -80,14 +81,16 @@ private[spark] class Master(
 
   // For application IDs
   val WORKER_TIMEOUT = conf.getLong("spark.worker.timeout", 60) * 1000
+  //显示已完成的Application的最大数目，当超过这个数目的时候，将从UI中删除之前的Application以维持这个数目。
   val RETAINED_APPLICATIONS = conf.getInt("spark.deploy.retainedApplications", 200)
+  //显示已完成的driver的最大数目，当超过这个数目的时候，将从UI中删除之前的Application以维持这个数目。
   val RETAINED_DRIVERS = conf.getInt("spark.deploy.retainedDrivers", 200)
+  //持久化deaded的worker的数量
   val REAPER_ITERATIONS = conf.getInt("spark.dead.worker.persistence", 15)
+  //配置Spark HA 时候恢复的模式：文件系统或者zookeeper方法
   val RECOVERY_MODE = conf.get("spark.deploy.recoveryMode", "NONE")
 
   /**
-    * <br> class WorkerInfo( val id: String, val host: String, val port: Int,val cores: Int,  val memory: Int,val actor: ActorRef, val webUiPort: Int,val publicAddress: String)
-    * <br>
     * <br>Master存储的所有worker信息
     *
     */
@@ -104,7 +107,6 @@ private[spark] class Master(
 
   /**
     * <br>HashSet存储应用信息。
-    * <br> ApplicationInfo(val startTime: Long, val id: String,val desc: ApplicationDescription,val submitDate: Date, val driver: ActorRef, defaultCores: Int)
     */
   val apps = new HashSet[ApplicationInfo]
 
@@ -121,16 +123,15 @@ private[spark] class Master(
     * val addressToApp = new HashMap[Address, ApplicationInfo]
     */
   val addressToApp = new HashMap[Address, ApplicationInfo]
-
   /**
     * val waitingApps = new ArrayBuffer[ApplicationInfo]
     */
   val waitingApps = new ArrayBuffer[ApplicationInfo]
-
   /**
     * val completedApps = new ArrayBuffer[ApplicationInfo]
     */
   val completedApps = new ArrayBuffer[ApplicationInfo]
+
   var nextAppNumber = 0
   /**
     * val appIdToUI = new HashMap[String, SparkUI]
@@ -143,27 +144,20 @@ private[spark] class Master(
     */
   val completedDrivers = new ArrayBuffer[DriverInfo]
   /**
-    *
-    * <br>
     * <br>存储 “等待的Driver信息”
-    * <br>
-    *
     * val waitingDrivers = new ArrayBuffer[DriverInfo]
-    *
-    *
     */
   val waitingDrivers = new ArrayBuffer[DriverInfo]
   // Drivers currently spooled for scheduling
   var nextDriverNumber = 0
 
   Utils.checkHost(host, "Expected hostname")
-
   val masterMetricsSystem = MetricsSystem.createMetricsSystem("master", conf, securityMgr)
-  val applicationMetricsSystem = MetricsSystem.createMetricsSystem("applications", conf,
-    securityMgr)
+  val applicationMetricsSystem = MetricsSystem.createMetricsSystem("applications", conf, securityMgr)
   val masterSource = new MasterSource(this)
-
   val webUi = new MasterWebUI(this, webUiPort)
+
+
 
   val masterPublicAddress = {
     val envVar = conf.getenv("SPARK_PUBLIC_DNS")
@@ -241,20 +235,17 @@ private[spark] class Master(
     context.system.eventStream.subscribe(self, classOf[RemotingLifecycleEvent])
     webUi.bind()
     masterWebUiUrl = "http://" + masterPublicAddress + ":" + webUi.boundPort
-
     /**
-      * 定时器
+      * 定时器，定义给自己发送心跳去检查是否有超超时的worker，有的话移除。
       */
     context.system.scheduler.schedule(0 millis, WORKER_TIMEOUT millis, self, CheckForWorkerTimeOut)
 
     masterMetricsSystem.registerSource(masterSource)
     masterMetricsSystem.start()
     applicationMetricsSystem.start()
-    // Attach the master and app metrics servlet handler to the web ui after the metrics systems are
-    // started.
+    // Attach the master and app metrics servlet handler to the web ui after the metrics systems are started.
     masterMetricsSystem.getServletHandlers.foreach(webUi.attachHandler)
     applicationMetricsSystem.getServletHandlers.foreach(webUi.attachHandler)
-
     /**
       * 选择持久化引擎，分为ZOOKEEPER、FILESYSTEM、CUSTOM
       */
@@ -337,15 +328,11 @@ private[spark] class Master(
     }
 
     /**
-      *
       * Worker发来的注册消息
-      *
-      *
       */
     case RegisterWorker(id, workerHost, workerPort, cores, memory, workerUiPort, publicAddress) => {
-      logInfo("Registering worker %s:%d with %d cores, %s RAM".format(
-        workerHost, workerPort, cores, Utils.megabytesToString(memory)))
 
+      logInfo("Registering worker %s:%d with %d cores, %s RAM".format(workerHost, workerPort, cores, Utils.megabytesToString(memory)))
       //如果当前Master状态为RecoveryState.STANDBY ，不回应Worker信息。
       if (state == RecoveryState.STANDBY) {
         // ignore, don't send response
@@ -353,15 +340,11 @@ private[spark] class Master(
         //如果包含WorkerInfo了，回复注册失败信息
         sender ! RegisterWorkerFailed("Duplicate worker ID")
       } else {
-
         //注册新的Worker信息
         val worker = new WorkerInfo(id, workerHost, workerPort, cores, memory, sender, workerUiPort, publicAddress)
         if (registerWorker(worker)) {
-
-
           //完成worker的持久化，以防master宕机之后无法恢复
           persistenceEngine.addWorker(worker)
-
           //给Worker发送消息：告诉worker完成注册RegisteredWorker
           sender ! RegisteredWorker(masterUrl, masterWebUiUrl)
           schedule()
@@ -476,12 +459,12 @@ private[spark] class Master(
           // exec.application.driver = driverClient
           exec.application.driver ! ExecutorUpdated(execId, state, message, exitStatus)
 
-//          完成状态包括：KILLED, FAILED, LOST, EXITED 注意：这里是完成，不是成功！
+          //          完成状态包括：KILLED, FAILED, LOST, EXITED 注意：这里是完成，不是成功！
           if (ExecutorState.isFinished(state)) {
             // Remove this executor from the worker and app
             logInfo(s"Removing executor ${exec.fullId} because it is $state")
-            appInfo.removeExecutor(exec)//appInfo移除executor
-            exec.worker.removeExecutor(exec)//worker移除executor
+            appInfo.removeExecutor(exec) //appInfo移除executor
+            exec.worker.removeExecutor(exec) //worker移除executor
 
             val normalExit = exitStatus == Some(0) //判断是否正常推出
             // Only retry certain number of times so we don't go into an infinite loop.
@@ -492,8 +475,9 @@ private[spark] class Master(
                 schedule()
               } else {
                 //超过最大重启次数
-                val execs = appInfo.executors.values//获取当前app的所有executors
-                if (!execs.exists(_.state == ExecutorState.RUNNING)) {//如果不存在运行的executor的话，直接removeApplication
+                val execs = appInfo.executors.values //获取当前app的所有executors
+                if (!execs.exists(_.state == ExecutorState.RUNNING)) {
+                  //如果不存在运行的executor的话，直接removeApplication
                   logError(s"Application ${appInfo.desc.name} with ID ${appInfo.id} failed " +
                     s"${appInfo.retryCount} times; removing it")
                   removeApplication(appInfo, ApplicationState.FAILED)
@@ -502,7 +486,7 @@ private[spark] class Master(
             }
           }
         }
-          //位置状态
+        //位置状态
         case None =>
           logWarning(s"Got status update for unknown executor $appId/$execId")
       }
@@ -694,9 +678,8 @@ private[spark] class Master(
   /**
     * Schedule the currently available resources among waiting apps. This method will be called
     * every time a new app joins or resource availability changes.
-    *
     * <br>调度器：
-    * <br>  调度当前等待的apps分配可获取的资源。
+    * <br>   为处于等待的app调度资源
     * <br>  当每次有新的app加入或者有可获得资源这时候这个方法被调用
     * <br>两种调度方式（个人称之为）：1）多餐少食 2）暴饮暴食
     * <br>
@@ -1079,19 +1062,20 @@ private[spark] class Master(
     appId
   }
 
-  /** Check for, and remove, any timed-out workers */
+  /** Check for, and remove, any timed-out workers<br>检查移除超时的Worker
+    */
   def timeOutDeadWorkers() {
     // Copy the workers into an array so we don't modify the hashset while iterating through it
     val currentTime = System.currentTimeMillis()
+    //TODO 过滤出来超时的Worker
     val toRemove = workers.filter(_.lastHeartbeat < currentTime - WORKER_TIMEOUT).toArray
-    for (worker <- toRemove) {
+    for (worker <- toRemove) {//移除过期的Worker
       if (worker.state != WorkerState.DEAD) {
-        logWarning("Removing %s because we got no heartbeat in %d seconds".format(
-          worker.id, WORKER_TIMEOUT / 1000))
+        logWarning("Removing %s because we got no heartbeat in %d seconds".format(worker.id, WORKER_TIMEOUT / 1000))
         removeWorker(worker)
       } else {
         if (worker.lastHeartbeat < currentTime - ((REAPER_ITERATIONS + 1) * WORKER_TIMEOUT)) {
-          workers -= worker // we've seen this DEAD worker in the UI, etc. for long enough; cull it
+          workers -= worker // we've seen this DEAD worker in the UI, etc. for long enough; cull（剔除） it
         }
       }
     }
@@ -1151,15 +1135,22 @@ private[spark] object Master extends Logging {
   val systemName = "sparkMaster"
   private val actorName = "Master"
 
+  /**
+    * spark-class脚本调用，启动master
+    *
+    * @param argStrings
+    */
   def main(argStrings: Array[String]) {
 
     SignalLogger.register(log)
     //参数配置准备
     val conf = new SparkConf
     val args = new MasterArguments(argStrings, conf)
+
     //创建actorSystem
     val (actorSystem, _, _, _) = startSystemAndActor(args.host, args.port, args.webUiPort, conf)
     actorSystem.awaitTermination()
+
   }
 
   /**
@@ -1189,19 +1180,21 @@ private[spark] object Master extends Logging {
     * <br>  (3) The web UI bound port
     * <br>   (4) The REST server bound port, if any
     *
-    * <br> 创建actorSystem，并在其下创建名字为Master的actor
+    * <br> 创建actorSystem，并在其下创建名字为Master的actor<br><br>
+    *   startSystemAndActor中调用createActorSystem完成Master actor的创建
     */
   def startSystemAndActor(
                            host: String,
                            port: Int,
                            webUiPort: Int,
                            conf: SparkConf): (ActorSystem, Int, Int, Option[Int]) = {
+
     val securityMgr = new SecurityManager(conf)
     //创建actorSystem，actorSystem名字为：sparkMaster
     val (actorSystem, boundPort) = AkkaUtils.createActorSystem(systemName, host, port, conf = conf, securityManager = securityMgr)
 
     //actorName =Master，在actorSystem下创建一个actor，名字为：Master
-    //此处会执行Master的主构造器中的代码
+    //TODO 此处会执行Master的主构造器中的代码
     val actor = actorSystem.actorOf(Props(classOf[Master], host, boundPort, webUiPort, securityMgr, conf), actorName)
 
     //设置超时时间

@@ -67,8 +67,7 @@ private[spark] class Worker(
                              actorName: String,
                              workDirPath: String = null,
                              val conf: SparkConf,
-                             val securityMgr: SecurityManager)
-  extends Actor with ActorLogReceive with Logging {
+                             val securityMgr: SecurityManager) extends Actor with ActorLogReceive with Logging {
 
   import context.dispatcher
 
@@ -113,7 +112,7 @@ private[spark] class Worker(
   var activeMasterWebUiUrl: String = ""
   /**
     *
-    *akkaUrl是worker的引用
+    * akkaUrl是worker的引用
     *
     */
   val akkaUrl = AkkaUtils.address(AkkaUtils.protocol(context.system), actorSystemName, host, port, actorName)
@@ -129,10 +128,8 @@ private[spark] class Worker(
     }
   var workDir: File = null
   /**
-    * val executors = new HashMap[String, ExecutorRunner]
-    *
+    * val executors = new HashMap[String, ExecutorRunner] <br>
     * 一个map存储映射，key= appId + "/" + execId ,value = ExecutorRunner
-    *
     */
   val executors = new HashMap[String, ExecutorRunner]
   /**
@@ -140,10 +137,8 @@ private[spark] class Worker(
     */
   val finishedExecutors = new HashMap[String, ExecutorRunner]
   /**
-    * val drivers = new HashMap[String, DriverRunner]
-    *
+    * val drivers = new HashMap[String, DriverRunner] <br>
     * driverId和DriverRunner的映射
-    *
     */
   val drivers = new HashMap[String, DriverRunner]
   val finishedDrivers = new HashMap[String, DriverRunner]
@@ -179,7 +174,7 @@ private[spark] class Worker(
     * 创建work目录
     */
   def createWorkDir() {
-    //new File(sparkHome, "work")生成 /SPARK_HOME/work目录
+    //如果配置了SPARK_WORKER_DIR属性，则指定Worker工作目录，不指定默认是SPARK_HOME/work目录
     workDir = Option(workDirPath).map(new File(_)).getOrElse(new File(sparkHome, "work"))
     try {
       // This sporadically fails - not sure why ... !workDir.exists() && !workDir.mkdirs()
@@ -208,18 +203,12 @@ private[spark] class Worker(
 
     logInfo(s"Running Spark version ${org.apache.spark.SPARK_VERSION}")
     logInfo("Spark home: " + sparkHome)
-
     createWorkDir()
-
     context.system.eventStream.subscribe(self, classOf[RemotingLifecycleEvent])
-
     shuffleService.startIfEnabled()
     webUi = new WorkerWebUI(this, workDir, webUiPort)
     webUi.bind()
-
-
     registerWithMaster()
-
     metricsSystem.registerSource(workerSource)
     metricsSystem.start()
     // Attach the worker metrics servlet handler to the web ui after the metrics system is started.
@@ -242,14 +231,11 @@ private[spark] class Worker(
   /**
     * 完成Worker向Master注册
     * <br> 如果Spark集群是HA模式的话，Master URL是一个数组
-    *
-    *
     */
   private def tryRegisterAllMasters() {
-    //遍历Master URL 数组
+    //遍历Master URL数组（HA模式下Master URL是一个数组）
     for (masterAkkaUrl <- masterAkkaUrls) {
       logInfo("Connecting to master " + masterAkkaUrl + "...")
-
       //context是在Actor中继承来的，找出Master对应的actor
       val actor = context.actorSelection(masterAkkaUrl)
       //向Master发送注册消息，如果master为standby模式的话，master不会回复消息
@@ -275,7 +261,6 @@ private[spark] class Worker(
         registrationRetryTimer = None
       } else if (connectionAttemptCount <= TOTAL_REGISTRATION_RETRIES) {
         logInfo(s"Retrying connection to master (attempt # $connectionAttemptCount)")
-
         /**
           * Re-register with the active master this worker has been communicating with. If there
           * is none, then it means this worker is still bootstrapping and hasn't established a
@@ -312,13 +297,11 @@ private[spark] class Worker(
           //最后一次连接
           registrationRetryTimer.foreach(_.cancel())
           registrationRetryTimer = Some {
-
             //final def schedule(initialDelay: FiniteDuration,interval: FiniteDuration, receiver: ActorRef, message: Any)
             //            self 也是actor继承来的
             //给自己发消息，在recieve中模式匹配处理消息
             context.system.scheduler.schedule(PROLONGED_REGISTRATION_RETRY_INTERVAL,
               PROLONGED_REGISTRATION_RETRY_INTERVAL, self, ReregisterWithMaster)
-
           }
         }
       } else {
@@ -335,10 +318,9 @@ private[spark] class Worker(
   def registerWithMaster() {
     // DisassociatedEvent（游离的事件） may be triggered multiple times, so don't attempt registration（注册）
     // if there are outstanding （显著的；未解决的；未偿付的）registration attempts scheduled.
-
     //registrationRetryTimer是worker的成员属性，标记是否注册
     registrationRetryTimer match {
-      //registrationRetryTimer初始值为None，未注册
+      //TODO registrationRetryTimer初始值为None，未注册
       case None =>
         registered = false
         tryRegisterAllMasters()
@@ -363,7 +345,7 @@ private[spark] class Worker(
       //修改master url为当前active的 master 的 url （不是standby master 的url）
       changeMaster(masterUrl, masterWebUiUrl)
 
-      //定时向master发送心跳
+      //定时自己发送心跳
       context.system.scheduler.schedule(0 millis, HEARTBEAT_MILLIS millis, self, SendHeartbeat)
 
       if (CLEANUP_ENABLED) {
@@ -371,7 +353,7 @@ private[spark] class Worker(
         context.system.scheduler.schedule(CLEANUP_INTERVAL_MILLIS millis,
           CLEANUP_INTERVAL_MILLIS millis, self, WorkDirCleanup)
       }
-
+    //收到自己心跳之后再給master发心跳，证明worker存活
     case SendHeartbeat =>
       if (connected) {
         master ! Heartbeat(workerId)
@@ -426,7 +408,7 @@ private[spark] class Worker(
     /**
       * Master 发送给worker的消息
       */
-      //TODO Master 发送给worker的消息,让worker启动executor 。LaunchExecutor包含executor的信息
+    //TODO Master 发送给worker的消息,让worker启动executor 。LaunchExecutor包含executor的信息
     case LaunchExecutor(masterUrl, appId, execId, appDesc, cores_, memory_) =>
       if (masterUrl != activeMasterUrl) {
         logWarning("Invalid Master (" + masterUrl + ") attempted to launch executor.")
@@ -446,7 +428,7 @@ private[spark] class Worker(
           // application finishes.
           /**
             * 创建一个本地文件夹为executor，然后使用SPARK_LOCAL_DIRS环境变量传递给executor<br>
-            *   然后当应用运行完毕之后，目录被Worker删除
+            * 然后当应用运行完毕之后，目录被Worker删除
             */
           val appLocalDirs = appDirectories.get(appId).getOrElse {
             Utils.getOrCreateLocalRootDirs(conf).map { dir =>
@@ -542,7 +524,7 @@ private[spark] class Worker(
     case LaunchDriver(driverId, driverDesc) => {
       logInfo(s"Asked to launch driver $driverId")
       val driver: DriverRunner = new DriverRunner(conf, driverId, workDir, sparkHome,
-                          driverDesc.copy(command = Worker.maybeUpdateSSLSettings(driverDesc.command, conf)), self, akkaUrl)
+        driverDesc.copy(command = Worker.maybeUpdateSSLSettings(driverDesc.command, conf)), self, akkaUrl)
       drivers(driverId) = driver
 
       driver.start()
@@ -654,11 +636,23 @@ private[spark] object Worker extends Logging {
     val args = new WorkerArguments(argStrings, conf)
 
     //创建actorSystem
-    val (actorSystem, _) = startSystemAndActor(args.host, args.port, args.webUiPort, args.cores,
-      args.memory, args.masters, args.workDir)
+    val (actorSystem, _) = startSystemAndActor(args.host, args.port, args.webUiPort, args.cores, args.memory, args.masters, args.workDir)
     actorSystem.awaitTermination()
   }
 
+  /**
+    *
+    * @param host
+    * @param port
+    * @param webUiPort
+    * @param cores
+    * @param memory
+    * @param masterUrls
+    * @param workDir
+    * @param workerNumber
+    * @param conf
+    * @return
+    */
   def startSystemAndActor(
                            host: String,
                            port: Int,

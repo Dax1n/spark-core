@@ -304,13 +304,9 @@ private[spark] class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl,
   val taskIdsOnSlave = new HashMap[String, HashSet[String]]
 
   /**
-    *
     * <br>CoarseGrainedSchedulerBackend的start()方法主要完成driverActor的创建
     * <br><br>
     * <br>SparkSubmit中有两个actor，分别是：1）driverActor负责与Executor通信 ，2）clientActor负责与Master通信
-    *
-    *
-    *
     */
   override def start() {
     val properties = new ArrayBuffer[(String, String)]

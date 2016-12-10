@@ -1075,11 +1075,13 @@ class PairRDDFunctions[K, V](self: RDD[(K, V)])
       val (outputMetrics, bytesWrittenCallback) = initHadoopOutputMetrics(context)
 
       writer.setup(context.stageId, context.partitionId, taskAttemptId)
+      //TODO 完成文件系统客户端的创建
       writer.open()
       var recordsWritten = 0L
       try {
         while (iter.hasNext) {
           val record = iter.next()
+          //TODO 真正向文件系统写数据
           writer.write(record._1.asInstanceOf[AnyRef], record._2.asInstanceOf[AnyRef])
 
           // Update bytes written metric every few records

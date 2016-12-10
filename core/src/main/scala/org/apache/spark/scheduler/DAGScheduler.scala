@@ -70,24 +70,22 @@ import org.apache.spark.storage.BlockManagerMessages.BlockManagerHeartbeat
   * include the new structure. This will help to catch memory leaks.
   *
   *
-  * <br><br><br><br>DAGScheduler负责将Task拆分成不同Stage的具有依赖关系（包含RDD的依赖关系）的多批任务，然后提交给TaskScheduler进行具体处理。
+  * <br><br><br><br>DAGScheduler负责拆分成Stage的具有依赖关系（包含RDD的依赖关系）的多批任务，然后提交给TaskScheduler进行具体处理。
   * <br><br>
-  * 【【在DAGScheduler创建主构造器最后一行完成一件大事】】<br> 就是启动DAGScheduler的时间循环处理器（DAGSchedulerEventProcessLoop的一个实例），
+  *  [[在DAGScheduler创建主构造器最后一行完成一件大事]]<br> 就是启动DAGScheduler的时间循环处理器（DAGSchedulerEventProcessLoop的一个实例），
   * <br>DAGScheduler的eventProcessLoop中有一个继承自父类的Thread一直循环处理消息，在该线程中获取到消息之后发送给
   * <br> DAGSchedulerEventProcessLoop的OnRecieve方法模式匹配处理
   *
-  *
   */
 
-
+// TODO [[在DAGScheduler创建主构造器最后一行完成一件大事]]
 private[spark] class DAGScheduler(
                                    private[scheduler] val sc: SparkContext,
                                    private[scheduler] val taskScheduler: TaskScheduler,
                                    listenerBus: LiveListenerBus,
                                    mapOutputTracker: MapOutputTrackerMaster,
                                    blockManagerMaster: BlockManagerMaster,
-                                   env: SparkEnv,
-                                   clock: Clock = new SystemClock()) extends Logging {
+                                   env: SparkEnv, clock: Clock = new SystemClock()) extends Logging {
 
   def this(sc: SparkContext, taskScheduler: TaskScheduler) = {
     this(

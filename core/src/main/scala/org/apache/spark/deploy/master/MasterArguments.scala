@@ -21,12 +21,24 @@ import org.apache.spark.SparkConf
 import org.apache.spark.util.{IntParam, Utils}
 
 /**
- * Command-line parser for the master.
- */
+  * Command-line parser for the master.<br>
+  * MasterArguments为Master解析命令行参数
+  */
 private[spark] class MasterArguments(args: Array[String], conf: SparkConf) {
+
+  /**
+    * 先从系统环境变量获取，然后在解析命令行参数。如果有相同的则覆盖
+    */
   var host = Utils.localHostName()
+  /**
+    * 先从系统环境变量获取，然后在解析命令行参数。如果有相同的则覆盖
+    */
   var port = 7077
+  /**
+    * 先从系统环境变量获取，然后在解析命令行参数。如果有相同的则覆盖
+    */
   var webUiPort = 8080
+
   var propertiesFile: String = null
 
   // Check for settings in environment variables
@@ -39,7 +51,7 @@ private[spark] class MasterArguments(args: Array[String], conf: SparkConf) {
   if (System.getenv("SPARK_MASTER_WEBUI_PORT") != null) {
     webUiPort = System.getenv("SPARK_MASTER_WEBUI_PORT").toInt
   }
-
+  //TODO 解析命令行参数。如果有相同的则覆盖
   parse(args.toList)
 
   // This mutates the SparkConf, so all accesses to it must be made after this line
@@ -82,19 +94,19 @@ private[spark] class MasterArguments(args: Array[String], conf: SparkConf) {
   }
 
   /**
-   * Print usage and exit JVM with the given exit code.
-   */
+    * Print usage and exit JVM with the given exit code.
+    */
   def printUsageAndExit(exitCode: Int) {
     System.err.println(
       "Usage: Master [options]\n" +
-      "\n" +
-      "Options:\n" +
-      "  -i HOST, --ip HOST     Hostname to listen on (deprecated, please use --host or -h) \n" +
-      "  -h HOST, --host HOST   Hostname to listen on\n" +
-      "  -p PORT, --port PORT   Port to listen on (default: 7077)\n" +
-      "  --webui-port PORT      Port for web UI (default: 8080)\n" +
-      "  --properties-file FILE Path to a custom Spark properties file.\n" +
-      "                         Default is conf/spark-defaults.conf.")
+        "\n" +
+        "Options:\n" +
+        "  -i HOST, --ip HOST     Hostname to listen on (deprecated, please use --host or -h) \n" +
+        "  -h HOST, --host HOST   Hostname to listen on\n" +
+        "  -p PORT, --port PORT   Port to listen on (default: 7077)\n" +
+        "  --webui-port PORT      Port for web UI (default: 8080)\n" +
+        "  --properties-file FILE Path to a custom Spark properties file.\n" +
+        "                         Default is conf/spark-defaults.conf.")
     System.exit(exitCode)
   }
 }

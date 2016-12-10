@@ -55,7 +55,7 @@ import org.apache.spark.util.{AkkaUtils, Utils}
 
 /**
   *
-  * <br>持有一个spark实例的所有的运行时环境变量对象，包含序列化器，Akka actor System等等
+  * <br>持有一个spark实例的所有的运行时环境变量对象，包含[[serializer, Akka actor system, block manager, map output tracker]]等等
   * <br>Spark 代码通过全局变量查找到SparkEnv，因此所有的线程都可以访问相同的Spark环境变量
   * <br>可以使用 SparkEnv.get 获取
   *

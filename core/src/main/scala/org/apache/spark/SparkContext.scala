@@ -77,15 +77,13 @@ import org.apache.spark.util._
 
 /**
   * <br> Spark集群的入口，一个SparkContext代表着一个Spark集群连接，SparkContext可以被用来在集群中创建RDDs、加速器、广播
-  * <br>
-  * <br>每一个JVM只有一个或者的SparkContext，如果想创建一个新的SparkContext，必须先停止之前的SparkContext。这个限制在将来可能会被解除
+  * <br>每一个JVM只有一个激活的SparkContext，如果想创建一个新的SparkContext，必须先停止之前的SparkContext。
+  * 这个限制在将来可能会被解除
   * <br>param config 这个配置将会覆写原有的配置
   */
 
 //主构造器主要完成的事情：1） 创建SparkEnv 2）创建TaskScheduler 3）创建DAGScheduler 4）启动TaskScheduler
 class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationClient {
-
-
   /**
     * 很重要：SparkContext是Spark提交任务到集群的入口
     * 我们看一下SparkContext的主构造器
@@ -94,7 +92,6 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     * 3.创建DAGScheduler
     * 4.taskScheduler.start()
     */
-
 
   /**
     * The call site where this SparkContext was constructed.
@@ -240,18 +237,15 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   conf.setIfMissing("spark.driver.host", Utils.localHostName())
   conf.setIfMissing("spark.driver.port", "0")
 
-  /**
-    *
-    */
   val jars: Seq[String] = conf.getOption("spark.jars").map(_.split(",")).map(_.filter(_.size != 0)).toSeq.flatten
 
-  val files: Seq[String] =
-    conf.getOption("spark.files").map(_.split(",")).map(_.filter(_.size != 0)).toSeq.flatten
+  val files: Seq[String] = conf.getOption("spark.files").map(_.split(",")).map(_.filter(_.size != 0)).toSeq.flatten
 
   val master = conf.get("spark.master")
   val appName = conf.get("spark.app.name")
 
   private[spark] val isEventLogEnabled = conf.getBoolean("spark.eventLog.enabled", false)
+
   private[spark] val eventLogDir: Option[URI] = {
     if (isEventLogEnabled) {
       val unresolvedDir = conf.get("spark.eventLog.dir", EventLoggingListener.DEFAULT_LOG_DIR)
@@ -311,6 +305,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     */
 
   private[spark] val env = createSparkEnv(conf, isLocal, listenerBus)
+
   SparkEnv.set(env)
 
   // Used to store a URL for each static file/jar together with the file's local timestamp
@@ -408,19 +403,21 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   //  SparkContext.createTaskScheduler(this, master)注释：
   //  Create a task scheduler based on a given master URL. Return a 2-tuple of the scheduler backend and the task scheduler.
   //基于给定的master URL 创建一个scheduler backend 和  task scheduler 的二元组
-  private[spark] var (schedulerBackend, taskScheduler) = SparkContext.createTaskScheduler(this, master)
 
+  private[spark] var (schedulerBackend, taskScheduler) = SparkContext.createTaskScheduler(this, master)
   //actorOf API说明:  Create new actor as child of this context with the given name
   /**
     * heartbeatReceiver负责Driver端处理executor的心跳
     */
+   //TODO 在Executor的主构造器启动org.apache.spark.executor.Executor.startDriverHeartbeater方法，完成定时给Driver发送心跳
   private val heartbeatReceiver = env.actorSystem.actorOf(
     //HeartbeatReceiver : 存活在Driver中，用来负责接收executors的心跳
     Props(new HeartbeatReceiver(taskScheduler)), "HeartbeatReceiver")
+
   @volatile private[spark] var dagScheduler: DAGScheduler = _
   try {
     //先创建taskScheduler是因为在创建DAGScheduler时候需要使用sparkcontext中的taskScheduler实例完成DAGScheduler的初始化
-    dagScheduler = new DAGScheduler(this)
+    dagScheduler = new DAGScheduler(this)//TODO 启动时间循环处理器
   } catch {
     case e: Exception => {
       try {
@@ -430,12 +427,11 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
       }
     }
   }
-
-  // start TaskScheduler after taskScheduler sets DAGScheduler reference in DAGScheduler's
-  // constructor
+  // start TaskScheduler after taskScheduler sets DAGScheduler reference in DAGScheduler's constructor
   /**
     *org.apache.spark.scheduler.TaskSchedulerImpl#start()
     */
+  //见证奇迹的地方，真正开始作业的地方
   taskScheduler.start()
 
   val applicationId: String = taskScheduler.applicationId()

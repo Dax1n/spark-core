@@ -46,8 +46,6 @@ import org.apache.spark.util.Utils
   *
   *                     <br><br><br>
   *                     * 主构造器加载配置信息
-  *
-  *
   *                     if (loadDefaults) {
   *                     // Load any spark.* system properties
   *                     for ((key, value) <- Utils.getSystemProperties if key.startsWith("spark.")) {
@@ -63,17 +61,14 @@ import org.apache.spark.util.Utils
 class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
 
   import SparkConf._
-
-  /** Create a SparkConf that loads defaults from system properties and the classpath
-    *
-    *创建一个SparkConf，完成默认Spark系统的配置加载（在主构造器中完成初始化的）<br>
-    *
-    *
+  /**
+    * Create a SparkConf that loads defaults from system properties and the classpath<br>
+    *创建一个SparkConf，完成默认Spark系统的配置加载（在主构造器中完成初始化的）
     */
   def this() = this(true)
 
   /**
-    * 线程安全的ConcurrentHashMap
+    * 存储key、value配置的
     */
   private val settings = new ConcurrentHashMap[String, String]()
 
@@ -187,7 +182,6 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging {
   /**
     * Use Kryo serialization and register the given set of classes with Kryo.
     * If called multiple times, this will append the classes from all calls together.
-    *
     * <br>设置Kryo序列化器
     */
   def registerKryoClasses(classes: Array[Class[_]]): SparkConf = {

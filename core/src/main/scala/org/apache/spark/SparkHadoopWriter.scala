@@ -75,6 +75,9 @@ class SparkHadoopWriter(@transient jobConf: JobConf)
       jobid, splitID, attemptID, conf.value)
   }
 
+  /**
+    *为SparkHadoopWriter的成员writer创建一个对应的文件系统客户端
+    */
   def open() {
     val numfmt = NumberFormat.getInstance()
     numfmt.setMinimumIntegerDigits(5)
@@ -146,6 +149,12 @@ class SparkHadoopWriter(@transient jobConf: JobConf)
     taskContext
   }
 
+  /**
+    *
+    * @param jobid 设置作业ID
+    * @param splitid 分片ID
+    * @param attemptid
+    */
   private def setIDs(jobid: Int, splitid: Int, attemptid: Int) {
     jobID = jobid
     splitID = splitid

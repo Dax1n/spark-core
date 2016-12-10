@@ -57,6 +57,17 @@ private[spark] object AkkaUtils extends Logging {
     Utils.startServiceOnPort(port, startService, conf, name)
   }
 
+  /**
+    *
+    * 对Akka Api的底层封装
+    *
+    * @param name
+    * @param host
+    * @param port
+    * @param conf
+    * @param securityManager
+    * @return
+    */
   private def doCreateActorSystem(
                                    name: String,
                                    host: String,
@@ -185,7 +196,8 @@ private[spark] object AkkaUtils extends Logging {
 
   /**
     * Send a message to the given actor and get its result within a default timeout, or
-    * throw a SparkException if this fails even after the specified number of retries.
+    * throw a SparkException if this fails even after the specified number of retries.<br>
+    * 发送一个消息并在超时时间内得到结果，如果重试次数之后失败抛异常
     */
   def askWithReply[T](
                        message: Any,

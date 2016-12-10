@@ -52,12 +52,8 @@ import org.apache.spark.util.{ActorLogReceive, Utils, AkkaUtils}
   *
   *
   */
-private[spark] class AppClient(
-                                actorSystem: ActorSystem,
-                                masterUrls: Array[String],
-                                appDescription: ApplicationDescription,
-                                listener: AppClientListener,
-                                conf: SparkConf) extends Logging {
+private[spark] class AppClient(actorSystem: ActorSystem, masterUrls: Array[String],
+                                appDescription: ApplicationDescription, listener: AppClientListener, conf: SparkConf) extends Logging {
 
   val masterAkkaUrls = masterUrls.map(Master.toAkkaUrl(_, AkkaUtils.protocol(actorSystem)))
 
@@ -65,6 +61,9 @@ private[spark] class AppClient(
   val REGISTRATION_RETRIES = 3
 
   var masterAddress: Address = null
+  /**
+    * clientActor
+    */
   var actor: ActorRef = null
   var appId: String = null
   var registered = false
@@ -97,7 +96,7 @@ private[spark] class AppClient(
     }
 
     /**
-      * appClient负责向master注册应用
+      * clientActor负责向master注册应用
       */
     def tryRegisterAllMasters() {
       //TODO 循环Master地址
@@ -225,9 +224,7 @@ private[spark] class AppClient(
   }
 
   /**
-    * SparkSubmit端的ClientActor的创建
-    *
-    *
+    * SparkSubmit端的ClientActor的创建,ClientActor完成和Master的通信
     */
   //TODO 创建ClientActor调用主构造器 ->preStart -> receive
   def start() {

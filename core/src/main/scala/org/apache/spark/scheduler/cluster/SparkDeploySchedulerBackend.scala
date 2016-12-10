@@ -56,7 +56,6 @@ private[spark] class SparkDeploySchedulerBackend(
   /**
     * <br> 1： super.start() 完成driverActor的创建
     * <br> 2： 方法其余完成clientActor的创建
-    *
     */
   override def start() {
     //TODO 首先调用父类的start方法来创建DriverActor
@@ -77,13 +76,9 @@ private[spark] class SparkDeploySchedulerBackend(
       "--cores", "{{CORES}}",
       "--app-id", "{{APP_ID}}",
       "--worker-url", "{{WORKER_URL}}")
-    val extraJavaOpts = sc.conf.getOption("spark.executor.extraJavaOptions")
-      .map(Utils.splitCommandString).getOrElse(Seq.empty)
-    val classPathEntries = sc.conf.getOption("spark.executor.extraClassPath")
-      .map(_.split(java.io.File.pathSeparator).toSeq).getOrElse(Nil)
-    val libraryPathEntries = sc.conf.getOption("spark.executor.extraLibraryPath")
-      .map(_.split(java.io.File.pathSeparator).toSeq).getOrElse(Nil)
-
+    val extraJavaOpts = sc.conf.getOption("spark.executor.extraJavaOptions").map(Utils.splitCommandString).getOrElse(Seq.empty)
+    val classPathEntries = sc.conf.getOption("spark.executor.extraClassPath").map(_.split(java.io.File.pathSeparator).toSeq).getOrElse(Nil)
+    val libraryPathEntries = sc.conf.getOption("spark.executor.extraLibraryPath").map(_.split(java.io.File.pathSeparator).toSeq).getOrElse(Nil)
     // When testing, expose the parent class path to the child. This is processed by
     // compute-classpath.{cmd,sh} and makes all needed jars available to child processes
     // when the assembly is built with the "*-provided" profiles enabled.

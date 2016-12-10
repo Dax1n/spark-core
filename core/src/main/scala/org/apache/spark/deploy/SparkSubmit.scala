@@ -117,6 +117,7 @@ object SparkSubmit {
     * @param args
     */
   def main(args: Array[String]): Unit = {
+
     val appArgs = new SparkSubmitArguments(args)
     if (appArgs.verbose) {
       printStream.println(appArgs)
@@ -159,12 +160,8 @@ object SparkSubmit {
     * <br>
     * <br>运行应用分两步骤：1：准备环境变量相关配置，2：调用child main class 的main方法
     * <br>
-    *
-    *
-    *
     */
   private[spark] def submit(args: SparkSubmitArguments): Unit = {
-
     /**
       * <br>提交命令：
       * <br>spark-submit  --master spark://node1:7077  --class    org.apache.spark.examples.SparkPi./examples/jars/spark-examples_2.11-2.0.1.jar
@@ -184,15 +181,13 @@ object SparkSubmit {
       * <br>
       *
       */
+    //TODO childArgs 使我们自己开发的spark app main方法传入的参数
+    //TODO childClasspath 使我们自己开发app的jar路径
+    //TODO sysProps 提交作业进程的一些信息，例如提交方式等
+    //TODO childMainClass使我们app jar的main入口
     val (childArgs, childClasspath, sysProps, childMainClass) = prepareSubmitEnvironment(args)
-
-    /**
-      *
-      * 运行main方法
-      *
-      */
+    //TODO 运行main方法
     def doRunMain(): Unit = {
-      //代理用户，不清楚。先略过不看
       if (args.proxyUser != null) {
         val proxyUser = UserGroupInformation.createProxyUser(args.proxyUser,
           UserGroupInformation.getCurrentUser())
@@ -218,7 +213,6 @@ object SparkSubmit {
         runMain(childArgs, childClasspath, sysProps, childMainClass, args.verbose)
       }
     }
-
     // In standalone cluster mode, there are two submission gateways:
     //   (1) The traditional Akka gateway using o.a.s.deploy.Client as a wrapper
     //   (2) The new REST-based gateway introduced in Spark 1.3
@@ -583,19 +577,11 @@ object SparkSubmit {
 
   /**
     * Run the main method of the child class using the provided launch environment.
-    *
     * Note that this main class will not be the one provided by the user if we're
     * running cluster deploy mode or python applications.
-    *
-    *
-    *
     */
-  private def runMain(
-                       childArgs: Seq[String],
-                       childClasspath: Seq[String],
-                       sysProps: Map[String, String],
-                       childMainClass: String,
-                       verbose: Boolean): Unit = {
+  private def runMain(childArgs: Seq[String], childClasspath: Seq[String],
+                      sysProps: Map[String, String], childMainClass: String, verbose: Boolean): Unit = {
     //是否打印调试信息
     if (verbose) {
       printStream.println(s"Main class:\n$childMainClass")
@@ -607,12 +593,12 @@ object SparkSubmit {
 
     val loader =
       if (sysProps.getOrElse("spark.driver.userClassPathFirst", "false").toBoolean) {
-        new ChildFirstURLClassLoader(new Array[URL](0),
-          Thread.currentThread.getContextClassLoader)
+        new ChildFirstURLClassLoader(new Array[URL](0), Thread.currentThread.getContextClassLoader)
       } else {
-        new MutableURLClassLoader(new Array[URL](0),
-          Thread.currentThread.getContextClassLoader)
+        new MutableURLClassLoader(new Array[URL](0), Thread.currentThread.getContextClassLoader)
       }
+    //设置该线程的上下文 ClassLoader。上下文 ClassLoader 可以在创建线程设置，
+    //并允许创建者在加载类和资源时向该线程中运行的代码提供适当的类加载器。
     Thread.currentThread.setContextClassLoader(loader)
 
     for (jar <- childClasspath) {

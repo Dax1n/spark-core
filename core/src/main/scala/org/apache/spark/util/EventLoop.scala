@@ -55,8 +55,8 @@ private[spark] abstract class EventLoop[E](name: String) extends Logging {
   /**
     * 这个就是事件处理器EventLoop的处理线程、
     *<br>在线程的run方法中完成时间的处理<br>
-    *   调用onReceive(event)方法，<br>
-    *     在EventLoop的实现类中通过模式匹配完成对应事件的处理
+    *调用onReceive(event)方法，<br>
+    *在EventLoop的实现类中通过模式匹配完成对应事件的处理
     *
     */
     // TODO 这个就是事件处理器EventLoop的处理线程、
@@ -66,7 +66,7 @@ private[spark] abstract class EventLoop[E](name: String) extends Logging {
     override def run(): Unit = {
       try {
         while (!stopped.get) {
-          val event = eventQueue.take()
+          val event = eventQueue.take()  //eventQueue: BlockingQueue[E] = new LinkedBlockingDeque[E]()
           try {
             onReceive(event)
           } catch {
