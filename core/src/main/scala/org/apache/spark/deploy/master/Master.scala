@@ -1148,6 +1148,7 @@ private[spark] object Master extends Logging {
     val args = new MasterArguments(argStrings, conf)
 
     //创建actorSystem
+    // (actorSystem, boundPort, portsResponse.webUIPort, portsResponse.restPort)
     val (actorSystem, _, _, _) = startSystemAndActor(args.host, args.port, args.webUiPort, conf)
     actorSystem.awaitTermination()
 

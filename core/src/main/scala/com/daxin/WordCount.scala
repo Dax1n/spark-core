@@ -32,6 +32,12 @@ object WordCount {
     //RDD5存储   所以RDD5是最后一个RDD，finalRDD
     val result = tmp.saveAsTextFile("d:\\resultfile\\")
 
+
+    akka.actor.Actor//400行是一个特质
+
+
+
+
     sc.stop()
   }
 }

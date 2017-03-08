@@ -6,7 +6,7 @@
       <option name="uncheckedWarnings" value="true" />
       <option name="featureWarnings" value="true" />
       <plugins>
-        <plugin path="C:\Users\Dax1n\.m2\repository\org\scalamacros\paradise_2.10.4\2.0.1\paradise_2.10.4-2.0.1.jar" />
+        <plugin path="C:\repo\org\scalamacros\paradise_2.10.4\2.0.1\paradise_2.10.4-2.0.1.jar" />
       </plugins>
     </profile>
   </component>
